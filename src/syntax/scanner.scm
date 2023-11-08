@@ -22,8 +22,7 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 |#
 
 (define-module (syntax scanner)
-	       #:export (scan-str-from-offset
-			  scan-str))
+	       #:export (scan-string))
 
 (use-modules (common)
 	     (rnrs base))
@@ -38,7 +37,7 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 ;; 	where:
 ;;		TokenKind = Symbol
 ;;		Lexeme = String
-(define scan-str
+(define scan-string
   (lambda (str)
     (let loop ([chars (string->list str)]
 	       [acc '()])

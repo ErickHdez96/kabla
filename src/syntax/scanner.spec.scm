@@ -10,7 +10,7 @@
     (lambda (kind str)
       (test-equal
 	(list (cons kind str))
-	(scan-str str))))
+	(scan-string str))))
 
   (test-complete-tokens 'whitespace " ")
   (test-complete-tokens 'whitespace "     ")
