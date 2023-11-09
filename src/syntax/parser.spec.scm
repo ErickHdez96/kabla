@@ -65,13 +65,62 @@
         (conifer-tree->debug-string (car parse-result))))))
 
 (test-group
-  "parser whole strings"
+  "atoms"
   (check
     "1"
     "
     root@0..1
       atom@0..1
-        int-number@0..1 \"1\""))
+        int-number@0..1 \"1\"")
+
+  (check
+    "hello-world"
+    "
+    root@0..11
+      atom@0..11
+        identifier@0..11 \"hello-world\"")
+
+  (check
+    "#\\a"
+    "
+    root@0..3
+      atom@0..3
+        char@0..3 \"#\\a\"")
+
+  (check
+    "#t"
+    "
+    root@0..2
+      atom@0..2
+        true@0..2 \"#t\"")
+
+  (check
+    "#T"
+    "
+    root@0..2
+      atom@0..2
+        true@0..2 \"#T\"")
+
+  (check
+    "#f"
+    "
+    root@0..2
+      atom@0..2
+        false@0..2 \"#f\"")
+
+  (check
+    "#F"
+    "
+    root@0..2
+      atom@0..2
+        false@0..2 \"#F\"")
+
+  (check
+    "\"hello\""
+    "
+    root@0..7
+      atom@0..7
+        string@0..7 \"\"hello\"\""))
 
 (test-group
   "lists"

@@ -46,7 +46,7 @@
 	; parses a single atom
 	; <boolean> | <number> | <character> | <string> | <identifier>
 	[(case peek-sk
-	   [(char int-number true false identifier) #t]
+	   [(char int-number true false identifier string) #t]
 	   [else #f])
 	 (start-node p 'atom)
 	 (bump p)

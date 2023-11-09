@@ -27,11 +27,6 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 (use-modules (common)
 	     (rnrs base))
 
-(define (dbg x)
-  (display x)
-  (newline)
-  x)
-
 ;; Transforms a string to a list of tokens in the form
 ;; List[Pair[TokenKind, Lexeme]]
 ;; 	where:
@@ -148,6 +143,13 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 	       (loop rest
 		     (cons (cons 'whitespace (list->string ws))
 			   acc)))]
+
+	    [(char=? #\" c)
+	     (let-values ([(str rest) (eat-string chars)])
+	       (loop rest
+		     (cons (cons 'string (list->string str))
+			   acc)))]
+
 	    [else (loop rest
 			(cons (cons 'error (string c))
 			      acc))]))))))
@@ -198,7 +200,8 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 ;; * If there aren't enough characters in the list, an exception is thrown.
 (define skip
   (lambda (chars n)
-    (if (= n 0)
+    (if (or (= n 0)
+	    (null? chars))
       chars
       (skip (cdr chars) (- n 1)))))
 
@@ -245,3 +248,25 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 	(loop (cdr lst)
 	      (cons (car lst)
 		    acc))))))
+
+(define eat-string
+  (lambda (chars)
+    (let loop ([chars (cdr chars)]
+	       [acc (list (car chars))])
+      (cond
+	[(null? chars)
+	 (values (reverse acc)
+		 chars)]
+	[(eqv? #\" (peek chars))
+	 (values (reverse (cons (car chars)
+				acc))
+		 (cdr chars))]
+	[(and (eqv? #\\ (peek chars))
+	      (peek-nth chars 1))
+	 (loop (skip chars 2)
+	       (cons* (cadr chars)
+		      (car chars)
+		      acc))]
+	[else (loop (cdr chars)
+		    (cons (car chars)
+			  acc))]))))
