@@ -14,7 +14,7 @@ testc: $(CURRENT_TEST_FILE)
 
 .PHONY: testlog
 testlog: test
-	rg "result-kind: fail" *.log -B5 -A2
+	rg "result-kind: fail" *.log -B5 -A2 --no-config
 
 .PHONY: test
 test: $(TEST_FILES)

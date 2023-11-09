@@ -39,30 +39,110 @@
 (define parse-datum
   (lambda (p)
     (let* ([peek-t (peek p)]
-	   [peek-sk (car peek-t)])
+	   [peek-sk (car peek-t)]
+	   [start (parser-offset p)])
+      (verify-token p peek-t)
       (cond
+	; parses a single atom
+	; <boolean> | <number> | <character> | <string> | <identifier>
 	[(case peek-sk
 	   [(char int-number true false identifier) #t]
 	   [else #f])
 	 (start-node p 'atom)
 	 (bump p)
-	 (finish-node p)]
+	 (finish-node p)
+	 (cons start (parser-offset p))]
+
+	; parses a list starting with an open delimiter
+	; (<datum*>) | [<datum>*] | (<datum>+ . <datum>) | [<datum>+ . <datum>]
 	[(eq? 'open-delim peek-sk)
 	 (start-node p 'list)
 	 (push-delimiter p (cdr peek-t))
-	 (let loop ()
+	 (let loop ([parsed-expr #f]
+		    [parsed-dot #f])
 	   (let* ([peek-t (peek p)]
 		  [peek-sk (car peek-t)])
-	     (when (and (not (eq? 'close-delim
-				  peek-sk))
-			(not (eq? 'eof
-				  peek-sk)))
-	       (parse-datum p)
-	       (loop))))
+	     (cond
+	       [(or (eq? 'close-delim peek-sk)
+		    (eq? 'eof peek-sk))
+		; Simply do nothing
+		#f]
+	       [(eq? 'dot peek-sk)
+		(when parsed-dot
+		  (emit-error p "multiple dots '.' not allowed inside list"))
+		(when (not parsed-expr)
+		  (emit-error p "expected at least one expression before dot '.'"))
+		(bump p)
+		(loop parsed-expr #t)]
+	       [else (parse-datum p)
+		     (loop #t parsed-dot)])))
 	 (expect-close-delimiter p (cond
 				     [(string=? "(" (cdr peek-t)) ")"]
 				     [(string=? "[" (cdr peek-t)) "]"]))
-	 (finish-node p)]))))
+	 (finish-node p)
+	 (cons start (parser-offset p))]
+
+	[(token-abbrev? peek-t)
+	 (start-node p 'abbreviation)
+	 (bump p)
+	 (parse-datum p)
+	 (finish-node p)
+	 (cons start (parser-offset p))]
+
+	[(eq? 'open-vector peek-sk)
+	 (start-node p 'vector)
+	 (push-delimiter p (cdr peek-t))
+
+	 (let loop ()
+	   (let* ([peek-t (peek p)]
+		  [peek-sk (car peek-t)])
+	     (cond
+	       [(or (eq? 'close-delim peek-sk)
+		    (eq? 'eof peek-sk))
+		; Simply do nothing
+		#f]
+	       [(eq? 'dot peek-sk)
+		(emit-error-and-bump p "dot '.' not allowed inside vector")
+		(loop)]
+	       [else (parse-datum p)
+		     (loop)])))
+
+	 (expect-close-delimiter p ")")
+	 (finish-node p)
+	 (cons start (parser-offset p))]
+
+	[(eq? 'open-bytevector peek-sk)
+	 (start-node p 'bytevector)
+	 (push-delimiter p (cdr peek-t))
+
+	 (let loop ()
+	   (let* ([peek-t (peek p)]
+		  [peek-sk (car peek-t)])
+	     (cond
+	       [(or (eq? 'close-delim peek-sk)
+		    (eq? 'eof peek-sk))
+		; Simply do nothing
+		#f]
+	       [(eq? 'dot peek-sk)
+		(emit-error-and-bump p "dot '.' not allowed inside bytevector")
+		(loop)]
+	       [(eq? 'int-number peek-sk)
+		; TODO: Check it is within 0-255
+		(bump p)
+		(loop)]
+	       [(parse-datum p) => (lambda (span)
+				     (emit-error-span p span "only integers in the range [0..255] allowed inside bytevectors")
+				     (loop))]
+	       [else (loop)])))
+
+	 (expect-close-delimiter p ")")
+	 (finish-node p)
+	 (cons start (parser-offset p))]
+
+	[else (emit-error-and-bump
+		p
+		"expected an opening delimiter or an atom")
+	      #f]))))
 
 (define start-node
   (lambda (p syntax-kind)
@@ -104,6 +184,18 @@
 	 (cons 'lbracket
 	       (parser-delimiter-stack p)))
        (bump p)]
+      [(string=? "#(" d)
+       (parser-delimiter-stack-set!
+	 p
+	 (cons 'vector
+	       (parser-delimiter-stack p)))
+       (bump p)]
+      [(string-ci=? "#vu8(" d)
+       (parser-delimiter-stack-set!
+	 p
+	 (cons 'bytevector
+	       (parser-delimiter-stack p)))
+       (bump p)]
       [else (violation-assertion
 	      'push-delimiter
 	      "tried to push an invalid delimiter: ~a"
@@ -128,22 +220,45 @@
       (let ([top-delim (car (parser-delimiter-stack p))])
 	(cond
 	  [(or (and (string=? ")" d)
-		    (eq? top-delim 'lparen))
+		    (or (eq? top-delim 'lparen)
+			(eq? top-delim 'vector)
+			(eq? top-delim 'bytevector)))
 	       (and (string=? "]" d)
 		    (eq? top-delim 'lbracket)))
 	   (parser-delimiter-stack-set!
 	     p
 	     (cdr (parser-delimiter-stack p)))])))))
 
-(define emit-error
-  (lambda (p msg . fargs)
+(define emit-error-span
+  (lambda (p span msg . fargs)
     (parser-errors-set!
       p
-      (cons (cons (cons (parser-offset p)
-			(+ (parser-offset p)
-			   (string-length (cdr (peek p)))))
+      (cons (cons span
 		  (cons msg fargs))
 	    (parser-errors p)))))
+
+(define emit-error
+  (lambda (p msg . fargs)
+    (emit-error-span
+      p
+      (cons (parser-offset p)
+	    (+ (parser-offset p)
+	       (string-length (cdr (peek p)))))
+      msg)))
+
+(define emit-error-and-bump
+  (lambda (p msg . fargs)
+    (apply emit-error p msg fargs)
+    (bump p)))
+
+(define verify-token
+  (lambda (p t)
+    (let ([sk (car t)]
+	  [text (cdr t)])
+      (case sk
+	[(open-bytevector)
+	 (when (not (string=? "#vu8(" text))
+	   (emit-error p "#vu8( must be lowercase"))]))))
 
 (define at-eof?
   (lambda (p)
@@ -169,7 +284,7 @@
 				  (cdr (parser-tokens p)))
 	      (parser-offset-set!
 		p
-		(+ 1 (parser-offset p)))
+		(+ (string-length (cdr t)) (parser-offset p)))
 	      t)])))
 
 (define peek-raw
@@ -190,3 +305,9 @@
       (when (at-trivia?)
 	(bump-raw p)
 	(loop)))))
+
+(define token-abbrev?
+  (lambda (t)
+    (case (car t)
+      [(quote backtick comma comma-at hash-quote hash-backtick hash-comma hash-comma-at) #t]
+      [else #f])))

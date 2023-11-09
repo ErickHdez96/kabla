@@ -54,7 +54,12 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 	    [(char=? #\] c) (loop rest (cons (cons 'close-delim "]") acc))]
 	    [(char=? #\' c) (loop rest (cons (cons 'quote "'") acc))]
 	    [(char=? #\` c) (loop rest (cons (cons 'backtick "`") acc))]
-	    [(char=? #\. c) (loop rest (cons (cons 'period ".") acc))]
+	    [(char=? #\. c)
+             (if (char-ident? peek-c)
+               (let-values ([(ident rest) (take-while chars char-ident?)])
+                 (loop rest (cons (cons 'identifier (list->string ident))
+                                  acc)))
+               (loop rest (cons (cons 'dot ".") acc)))]
 
 	    [(char=? #\, c)
 	     (if (eqv? #\@ peek-c)
