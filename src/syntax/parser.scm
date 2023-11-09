@@ -4,11 +4,6 @@
 (use-modules (rnrs records syntactic)
 	     (conifer))
 
-(define (dbg x)
-  (display x)
-  (newline)
-  x)
-
 (define-record-type
   parser
   (fields
@@ -258,7 +253,11 @@
       (case sk
 	[(open-bytevector)
 	 (when (not (string=? "#vu8(" text))
-	   (emit-error p "#vu8( must be lowercase"))]))))
+	   (emit-error p "#vu8( must be lowercase"))]
+	[(identifier)
+	 (when (string-prefix? "#" text)
+	   (emit-error p "identifiers cannot begin with '#'"))
+	 ]))))
 
 (define at-eof?
   (lambda (p)

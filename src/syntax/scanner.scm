@@ -116,6 +116,19 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 				      ; push the skipped # back
 				      (cons #\# char)))
 			      acc)))]
+	       [(not (char-delimiter? peek-c))
+		; Take everything until we hit a delimiter, the parser
+		; should generate the error for the invalid token.
+		(let-values ([(char rest) (take-til
+					    ; skip the #, it is a delimiter
+					    (cdr chars)
+					    char-delimiter?)])
+		  (loop rest
+			(cons (cons 'identifier
+				    (list->string
+				      ; push the skipped # back
+				      (cons #\# char)))
+			      acc)))]
 	       [else (loop rest (cons (cons 'error "#") acc))])]
 	    ; end #
 
