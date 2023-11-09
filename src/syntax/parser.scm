@@ -24,7 +24,8 @@
 
       (let loop ()
 	(when (not (at-eof? p))
-	  (parse-datum p)))
+	  (parse-datum p)
+	  (loop)))
 
       (finish-node p)
       (let ([t (conifer-finish-builder (parser-builder p))])
@@ -261,7 +262,7 @@
 
 (define at-eof?
   (lambda (p)
-    (eq? (car (peek-raw p))
+    (eq? (car (peek p))
 	 'eof)))
 
 (define next

@@ -354,6 +354,18 @@
           identifier@3..4 \"a\""))
 
 (test-group
+  "multiple data"
+  (check
+    "1 2"
+    "
+    root@0..3
+      atom@0..1
+        int-number@0..1 \"1\"
+      whitespace@1..2 \" \"
+      atom@2..3
+        int-number@2..3 \"2\""))
+
+(test-group
   "error recovery"
   (check
     "(. 2)"
