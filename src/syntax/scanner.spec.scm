@@ -1,5 +1,5 @@
-(use-modules (srfi srfi-64)
-	     (syntax scanner))
+(import (srfi srfi-64)
+	(syntax scanner))
 
 (test-runner-current (test-runner-simple))
 

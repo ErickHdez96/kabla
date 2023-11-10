@@ -1,7 +1,7 @@
-(use-modules (srfi srfi-64)
-             (syntax parser)
-             (syntax scanner)
-             (conifer))
+(import (srfi srfi-64)
+	(syntax parser)
+	(syntax scanner)
+	(conifer))
 
 (test-runner-current (test-runner-simple))
 

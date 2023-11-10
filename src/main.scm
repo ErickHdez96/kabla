@@ -5,9 +5,13 @@
 (add-to-load-path (dirname (current-filename)))
 
 (use-modules (rnrs base)
+	     (rnrs exceptions)
+	     (rnrs io simple)
 	     (ice-9 format)
+	     (ice-9 exceptions)
 	     (conifer)
 	     (compiler config)
+	     (syntax)
 	     (query)
 	     (common)
 	     (atty))
@@ -26,38 +30,43 @@ Options:
   --emit parse-tree
 	Parses the file (without expanding macros) and prints the resulting tree.")
 
+(define SEARCH-PATH '())
+(define DEFAULT-COMPILER-CONFIG
+  (list
+    (cons 'search-path SEARCH-PATH)))
+
 (define main
   (lambda (args)
     (let* ([parsed-args (parse-args args)]
-	   [compiler-config (assoc-list->compiler-config parsed-args)]
+	   [input-file (cdr (assq 'input-file parsed-args))]
+	   [absolute-input-filename (guard
+				      (x [(eq? 'system-error (exception-kind x))
+					  (bail (format #f
+							"~a ~? - ~a"
+							(red-bold "error:")
+							(exception-message x)
+							(exception-irritants x)
+							input-file))])
+				      (canonicalize-path input-file))]
+	   [compiler-config (assoc-list->compiler-config (append parsed-args
+								 (cons
+								   (cons 'base-dir
+									 (dirname absolute-input-filename))
+								   DEFAULT-COMPILER-CONFIG)))]
 	   [qctx (make-query-context compiler-config)]
-	   [root-module (input-file->module (compiler-config-root-file
-					      compiler-config))])
+	   [root-module (input-file->module input-file)]
+	   [result (fetch qctx 'module->parse-tree root-module)])
 
-      (display (fmap
-		 (lambda (res)
-		   (cons*
-		     "content:"
-		     #\linefeed
-		     (conifer-tree->string (car res))
-		     "tree:"
-		     #\linefeed
-		     (conifer-tree->debug-string (car res))
-		     #\linefeed
-		     "errors:"
-		     #\linefeed
-		     (cdr res)))
-		 (fetch qctx 'parse-module root-module)))
-      (newline))))
+      (cond
+	[(is-error? result) (bail (apply format #f "~a ~@?" (red "error:") (cdr result)))]
+	[result (for-each (lambda (n)
+			    (display (conifer-tree->debug-string n))
+			    (newline))
+			  (pt-root-sexps (parse-result-parse-tree result)))]
+	[else (bail
+		"query returned #f")]))))
 
-(define input-file->module
-  (lambda (absolute-path)
-    (let* ([fn (basename absolute-path)]
-	   [last-period (or (string-rindex fn #\.) (string-length fn))]
-	   [without-extension (substring fn 0 last-period)])
-      (list (string->symbol
-	      without-extension)))))
-
+;; Parses the arguments given to the program into an association list.
 (define parse-args
   (lambda (args)
     (let loop ([args (cdr args)]
@@ -101,18 +110,7 @@ Options:
 				  arg)
 			    assl)))]))))))
 
-(define bail
-  (lambda (msg . exit-code)
-    (let* ([exit-code (if (null? exit-code)
-			1
-			(car exit-code))]
-	   [out-port (if (= exit-code 0)
-		       (current-output-port)
-		       (current-error-port))])
-      (display msg out-port)
-      (newline out-port)
-      (exit exit-code))))
-
+;; Validates the parsed arguments.
 (define validate-parsed-args
   (lambda (args)
     (let check-duplicates ([args args]
@@ -144,3 +142,30 @@ Options:
 			    (cdr el)
 			    "<none>") (car el))))]))])
     args))
+
+;; Prints `msg` and exits the program.
+(define bail
+  (lambda (msg . exit-code)
+    (let* ([exit-code (if (null? exit-code)
+			1
+			(car exit-code))]
+	   [out-port (if (= exit-code 0)
+		       (current-output-port)
+		       (current-error-port))])
+      (display msg out-port)
+      (newline out-port)
+      (exit exit-code))))
+
+;; Turns the input file to a module name.
+;;
+;; # Examples
+;;
+;; "src/main.scm" -> '(main)
+;; "kabla.scm" -> '(kabla)
+(define input-file->module
+  (lambda (absolute-path)
+    (let* ([fn (basename absolute-path)]
+	   [last-period (or (string-rindex fn #\.) (string-length fn))]
+	   [without-extension (substring fn 0 last-period)])
+      (list (string->symbol
+	      without-extension)))))
