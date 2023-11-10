@@ -108,8 +108,7 @@ The following is a (hopefully) extensive list of all the erroneous tokens that c
 		      (eqv? #\F peek-c))
 		  (loop (cdr rest) (cons (cons 'false (string c peek-c))
 					 acc))]
-		 [(and (eqv? #\\ peek-c)
-		       (peek-nth rest 1))
+		 [(eqv? #\\ peek-c)
 		  ; Take everything until we hit a delimiter, the parser
 		  ; should generate the error for invalid characters.
 		  (let-values ([(char rest) (take-til

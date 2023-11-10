@@ -4,7 +4,7 @@
 (test-runner-current (test-runner-simple))
 
 (test-group
-  "scanner whole strings"
+  "scaner whole strings"
   ; tests that the whole string scans into a single token.
   (define test-complete-tokens
     (lambda (kind str)
@@ -85,6 +85,7 @@
   (test-complete-tokens 'char "#\\NUL")
   (test-complete-tokens 'char "#\\aa")
   (test-complete-tokens 'char "#\\x3BB")
+  (test-complete-tokens 'char "#\\")
 
   (test-complete-tokens 'open-bytevector "#vu8(")
   (test-complete-tokens 'open-bytevector "#Vu8(")

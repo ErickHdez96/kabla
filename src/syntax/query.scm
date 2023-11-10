@@ -1,10 +1,6 @@
 (library
   (syntax query)
-  (export register-queries
-	  parse-result-file-id
-	  parse-result-parse-tree
-	  parse-result-errors
-	  parse-result?)
+  (export register-queries)
   (import (rnrs base)
 	  (only (rnrs records syntactic)
 		define-record-type)
@@ -17,14 +13,9 @@
 		scan-string)
 	  (only (syntax parser)
 		parse-tokens)
+	  (only (syntax records)
+		make-parse-result)
 	  (common))
-
-  (define-record-type
-    parse-result
-    (fields
-      file-id
-      parse-tree
-      errors))
 
   (define register-queries
     (lambda (bctx)

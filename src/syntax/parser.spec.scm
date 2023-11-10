@@ -65,7 +65,7 @@
         (conifer-tree->debug-string (car parse-result))))))
 
 (test-group
-  "atoms"
+  "parser atoms"
   (check
     "1"
     "
@@ -86,6 +86,20 @@
     root@0..3
       atom@0..3
         char@0..3 \"#\\a\"")
+
+  (check
+    "#\\space"
+    "
+    root@0..7
+      atom@0..7
+        char@0..7 \"#\\space\"")
+
+  (check
+    "#\\x3bb"
+    "
+    root@0..6
+      atom@0..6
+        char@0..6 \"#\\x3bb\"")
 
   (check
     "#t"
@@ -123,7 +137,7 @@
         string@0..7 \"\"hello\"\""))
 
 (test-group
-  "lists"
+  "parser lists"
   (check
     "()"
     "
@@ -207,7 +221,7 @@
         close-delim@6..7 \")\""))
 
 (test-group
-  "recursive lists"
+  "parser recursive lists"
   (check
     "(let ([x 1]
            [y 2])
@@ -254,7 +268,7 @@
         close-delim@44..45 \")\""))
 
 (test-group
-  "vectors"
+  "parser vectors"
   (check
     "#(1)"
     "
@@ -266,7 +280,7 @@
         close-delim@3..4 \")\""))
 
 (test-group
-  "bytevectors"
+  "parser bytevectors"
   (check
     "#vu8(1)"
     "
@@ -277,7 +291,7 @@
         close-delim@6..7 \")\""))
 
 (test-group
-  "abbreviations"
+  "parser abbreviations"
   (check
     "'a"
     "
@@ -354,7 +368,7 @@
           identifier@3..4 \"a\""))
 
 (test-group
-  "multiple data"
+  "parser multiple data"
   (check
     "1 2"
     "
@@ -366,7 +380,7 @@
         int-number@2..3 \"2\""))
 
 (test-group
-  "error recovery"
+  "parser error recovery"
   (check
     "(. 2)"
     "
@@ -446,7 +460,7 @@
     '((7 . 8) "dot '.' not allowed inside bytevector")))
 
 (test-group
-  "invalid tokens"
+  "parser invalid tokens"
 
   (check
     "#vU8()"
@@ -456,4 +470,59 @@
         open-bytevector@0..5 \"#vU8(\"
         close-delim@5..6 \")\""
     '((0 . 5) "#vu8( must be lowercase")) ; )
-  )
+
+  (check
+    "#\\"
+    "
+    root@0..2
+      atom@0..2
+        char@0..2 \"#\\\""
+    '((0 . 2) "expecting a character"))
+
+  (check
+    "#\\X3bb"
+    "
+    root@0..6
+      atom@0..6
+        char@0..6 \"#\\X3bb\""
+    '((0 . 6) "invalid hex character, try #\\x"))
+
+  (check
+    "#\\xD800"
+    "
+    root@0..7
+      atom@0..7
+        char@0..7 \"#\\xD800\""
+    '((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))
+
+  (check
+    "#\\xDFFF"
+    "
+    root@0..7
+      atom@0..7
+        char@0..7 \"#\\xDFFF\""
+    '((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))
+
+  (check
+    "#\\x110000"
+    "
+    root@0..9
+      atom@0..9
+        char@0..9 \"#\\x110000\""
+    '((0 . 9) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))
+
+  (check
+    "#\\xg"
+    "
+    root@0..4
+      atom@0..4
+        char@0..4 \"#\\xg\""
+    '((0 . 4) "invalid hex scalar value"))
+
+  (check
+    "#\\Space"
+    "
+    root@0..7
+      atom@0..7
+        char@0..7 \"#\\Space\""
+    '((0 . 7) "invalid character name: Space")))

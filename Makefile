@@ -1,6 +1,6 @@
 SRCDIR = src
 CMD = guile -L $(SRCDIR) --r6rs
-CURRENT_TEST_FILE = src/syntax/parser.spec.scm
+CURRENT_TEST_FILE = src/syntax/expander.spec.scm
 TEST_FILES = $(wildcard $(SRCDIR)/**/*.spec.scm)
 
 .PHONY: all

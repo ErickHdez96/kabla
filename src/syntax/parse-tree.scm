@@ -1,17 +1,18 @@
-#|
-Parse tree module.
-
-A parse tree comprises of simple atoms and lists. It has no knowledge about about its contents,
-such as defines, exprs, macros, etc. It serves as an input to the expander, which transforms
-a parse tree into an abstract syntax tree, after resolving and expanding macros (e.g. define,
-lambda, if, define-macro, macro usages, etc.)
-|#
-
+;;; Parse tree module.
+;;;
+;;; A parse tree comprises of simple atoms and lists. It has no knowledge about
+;;; about its contents, such as defines, exprs, macros, etc. It serves as an
+;;; input to the expander, which transforms a parse tree into an abstract syntax
+;;; tree, after resolving and expanding macros (e.g. define, lambda, if,
+;;; define-macro, macro usages, etc.)
 (library
   (syntax parse-tree)
   (export pt-root-sexps
 	  pt-sexp?
 	  pt-atom?
+	  pt-boolean?
+	  pt-boolean-value
+	  pt-char?
 	  pt-list?
 	  pt-vector?
 	  pt-bytevector?
@@ -22,7 +23,10 @@ lambda, if, define-macro, macro usages, etc.)
 	  (only (conifer)
 		conifer-red-tree?
 		conifer-syntax-kind
-		conifer-red-children))
+		conifer-red-children
+		conifer-token-text)
+	  (only (syntax parser)
+		parse-char))
 
   ;; Returns the s-exps of the `root` red-tree.
   (define pt-root-sexps
@@ -42,14 +46,42 @@ lambda, if, define-macro, macro usages, etc.)
 	 node]
 	[else #f])))
 
-  ;; Returns `node` as-is if it is a list, `#f` otherwise.
+  ;; Returns the internal node if `node` is an atom, `#f` otherwise.
   (define pt-atom?
     (lambda (node)
       (and (eq? 'atom
 		(conifer-syntax-kind node))
+	   (car (conifer-red-children node)))))
+
+  ;; Returns `node` as-is if it is a boolean, `#f` otherwise.
+  (define pt-boolean?
+    (lambda (node)
+      (and (or (eq? 'true
+		    (conifer-syntax-kind node))
+	       (eq? 'false
+		    (conifer-syntax-kind node)))
 	   node)))
 
-  ;; Returns `node` as-is if it is a vector, `#f` otherwise.
+  (define pt-boolean-value
+    (lambda (atom)
+      (cond
+	[(eq? 'true (conifer-syntax-kind atom)) #t]
+	[(eq? 'false (conifer-syntax-kind atom)) #f]
+	[else (assertion-violation
+		'pt-boolean-value
+		"expected a boolean red tree, found: ~a"
+		atom)])))
+
+  ;; Returns the internal node if `node` is an atom, `#f` otherwise.
+  (define pt-char?
+    (lambda (node)
+      (and (eq? 'char (conifer-syntax-kind node))
+	   (let ([c (parse-char (conifer-token-text node))])
+	     (if (char? c)
+	       c
+	       #\xFFFD)))))
+
+  ;; Returns `node` as-is if it is a list, `#f` otherwise.
   (define pt-list?
     (lambda (node)
       (and (eq? 'list
@@ -70,7 +102,7 @@ lambda, if, define-macro, macro usages, etc.)
 		(conifer-syntax-kind node))
 	   node)))
 
-  ;; Returns `node` as-is if it is a abbreviation, `#f` otherwise.
+  ;; Returns `node` as-is if it is an abbreviation, `#f` otherwise.
   (define pt-abbreviation?
     (lambda (node)
       (and (eq? 'abbreviation

@@ -1,15 +1,19 @@
 (library
   (syntax parser)
-  (export parse-tokens)
+  (export parse-tokens
+	  parse-char)
   (import (rnrs base)
 	  (only (rnrs control)
 		when)
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (rnrs unicode)
-		string-ci=?)
+		string-ci=?
+		char-downcase)
 	  (only (srfi srfi-13)
 		string-prefix?)
+	  (only (ice-9 format)
+		format)
 	  (only (conifer)
 		conifer-green-node-builder
 		conifer-start-node
@@ -271,7 +275,11 @@
 	  [(identifier)
 	   (when (string-prefix? "#" text)
 	     (emit-error p "identifiers cannot begin with '#'"))
-	   ]))))
+	   ]
+	  [(char)
+	   (let ([e (parse-char text)])
+	     (when (string? e)
+	       (emit-error p e)))]))))
 
   (define at-eof?
     (lambda (p)
@@ -323,4 +331,77 @@
     (lambda (t)
       (case (car t)
 	[(quote backtick comma comma-at hash-quote hash-backtick hash-comma hash-comma-at) #t]
-	[else #f]))))
+	[else #f])))
+
+  ;; Parses string `s` into a character or returns a string with an
+  ;; error message.
+  (define parse-char
+    (lambda (s)
+      ; scanner must only have returned a character token if it begins
+      ; with #\
+      (assert (string-prefix? "#\\" s))
+      (cond
+	[(= 2 (string-length s)) "expecting a character"]
+	[(= 3 (string-length s))
+	 ; if there are only 3 characters in the string,
+	 ; the third one is simply the character
+	 (string-ref s 2)]
+	[(char=? #\X (string-ref s 2))
+	 "invalid hex character, try #\\x"]
+	[(char=? #\x (string-ref s 2))
+	 (let ([hex (parse-hex-scalar-value
+		      (substring s 3))])
+	   (cond
+	     [(string? hex) hex]
+	     [(or (<= 0 hex #xD7FF)
+		  (<= #xE000 hex #x10FFFF))
+	      (integer->char hex)]
+	     [else
+	       "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"]))]
+	[else (let ([char-name (substring s 2)])
+		(cond
+		  [(string=? "nul" char-name) #\nul]
+		  [(string=? "alarm" char-name) #\alarm]
+		  [(string=? "backspace" char-name) #\backspace]
+		  [(string=? "tab" char-name) #\tab]
+		  [(string=? "linefeed" char-name) #\linefeed]
+		  [(string=? "newline" char-name) #\newline]
+		  [(string=? "vtab" char-name) #\vtab]
+		  [(string=? "page" char-name) #\page]
+		  [(string=? "return" char-name) #\return]
+		  [(string=? "esc" char-name) #\esc]
+		  [(string=? "space" char-name) #\space]
+		  [(string=? "delete" char-name) #\delete]
+		  [else (format
+			  #f
+			  "invalid character name: ~a"
+			  char-name)]))])))
+
+  ;; Parses a hex number and returns an integer or a string with
+  ;; an error message.
+  (define parse-hex-scalar-value
+    (lambda (s)
+      (if (zero? (string-length s))
+	#f
+	(let loop ([n 0]
+		   [parsed 0])
+	  (if (= n (string-length s))
+	    parsed
+	    (let ([c (char-downcase (string-ref s n))])
+	      (cond
+		[(and (char>=? c #\0)
+		      (char<=? c #\9))
+		 (loop (+ n 1)
+		       (+ (* parsed 16)
+			  (- (char->integer c)
+			     (char->integer #\0))))]
+		[(and (char>=? c #\a)
+		      (char<=? c #\f))
+		 (loop (+ n 1)
+		       (+ (* parsed 16)
+			  (- (char->integer c)
+			     (char->integer #\a))
+			  10))]
+		[else "invalid hex scalar value"]))))))))
+
+	  
