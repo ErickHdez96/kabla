@@ -493,7 +493,7 @@
     root@0..7
       atom@0..7
         char@0..7 \"#\\xD800\""
-    '((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))
+    '((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"))
 
   (check
     "#\\xDFFF"
@@ -501,7 +501,7 @@
     root@0..7
       atom@0..7
         char@0..7 \"#\\xDFFF\""
-    '((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))
+    '((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"))
 
   (check
     "#\\x110000"
@@ -509,7 +509,7 @@
     root@0..9
       atom@0..9
         char@0..9 \"#\\x110000\""
-    '((0 . 9) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))
+    '((0 . 9) "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"))
 
   (check
     "#\\xg"
@@ -525,4 +525,28 @@
     root@0..7
       atom@0..7
         char@0..7 \"#\\Space\""
-    '((0 . 7) "invalid character name: Space")))
+    '((0 . 7) "invalid character name: Space"))
+
+  (check
+    "\""
+    "
+    root@0..1
+      atom@0..1
+        string@0..1 \"\"\""
+    '((0 . 1) "unterminated string"))
+
+  (check
+    (list->string '(#\" #\\ #\"))
+    "
+    root@0..3
+      atom@0..3
+        string@0..3 \"\"\\\"\""
+    '((0 . 3) "unterminated string"))
+
+  (check
+    (list->string '(#\" #\h #\i))
+    "
+    root@0..3
+      atom@0..3
+        string@0..3 \"\"hi\""
+    '((0 . 3) "unterminated string")))

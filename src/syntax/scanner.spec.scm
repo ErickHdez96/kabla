@@ -92,4 +92,6 @@
   (test-complete-tokens 'open-bytevector "#VU8(")
   (test-complete-tokens 'open-bytevector "#vU8(")
 
+  (test-complete-tokens 'string "\"Hello, world!")
+
   (test-complete-tokens 'identifier ".a"))

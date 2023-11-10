@@ -105,17 +105,16 @@
 
     (check
       "#\\x2654"
-      '((0 . 7) . #\♔))
-    ; error chars
+      '((0 . 7) . #\♔))))
 
-    (check
-      "#\\Space"
-      '((0 . 7) . #\xFFFD)
-      '(((0 . 7) "invalid character name: Space")))
+(test-group
+  "expander simple error recovery"
+  (check
+    "#\\Space"
+    '((0 . 7) . #\xFFFD)
+    '(((0 . 7) "invalid character name: Space")))
 
-    (check
-      "#\\xDAAA"
-      '((0 . 7) . #\xFFFD)
-      '(((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"))))
-
-    )
+  (check
+    "#\\xDAAA"
+    '((0 . 7) . #\xFFFD)
+    '(((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"))))

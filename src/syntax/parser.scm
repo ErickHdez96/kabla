@@ -54,12 +54,12 @@
       (let* ([peek-t (peek p)]
 	     [peek-sk (car peek-t)]
 	     [start (parser-offset p)])
-	(verify-token p peek-t)
+	(validate-token p peek-t)
 	(cond
 	  ; parses a single atom
 	  ; <boolean> | <number> | <character> | <string> | <identifier>
 	  [(case peek-sk
-	     [(char int-number true false identifier string) #t]
+	     [(char true false int-number identifier string) #t]
 	     [else #f])
 	   (start-node p 'atom)
 	   (bump p)
@@ -264,7 +264,7 @@
       (apply emit-error p msg fargs)
       (bump p)))
 
-  (define verify-token
+  (define validate-token
     (lambda (p t)
       (let ([sk (car t)]
 	    [text (cdr t)])
@@ -279,7 +279,23 @@
 	  [(char)
 	   (let ([e (parse-char text)])
 	     (when (string? e)
-	       (emit-error p e)))]))))
+	       (emit-error p e)))]
+	  [(string)
+	   ; TODO: Improve string validation
+	   (when (or (= 1 (string-length text))
+		     (not (char=? #\"
+				  (string-ref text
+					      (- (string-length text)
+						 1))))
+		     (and (char=? #\"
+				  (string-ref text
+					      (- (string-length text)
+						 1)))
+			  (char=? #\\
+				  (string-ref text
+					      (- (string-length text)
+						 2)))))
+	     (emit-error p "unterminated string"))]))))
 
   (define at-eof?
     (lambda (p)
@@ -357,7 +373,7 @@
 		  (<= #xE000 hex #x10FFFF))
 	      (integer->char hex)]
 	     [else
-	       "hex scalar value must be in range [#x0, #xD7FF] or [#xE000, #x10FFFF]"]))]
+	       "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"]))]
 	[else (let ([char-name (substring s 2)])
 		(cond
 		  [(string=? "nul" char-name) #\nul]
@@ -403,5 +419,3 @@
 			     (char->integer #\a))
 			  10))]
 		[else "invalid hex scalar value"]))))))))
-
-	  
