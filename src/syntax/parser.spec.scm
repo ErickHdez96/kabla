@@ -392,7 +392,7 @@
         atom@3..4
           int-number@3..4 \"2\"
         close-delim@4..5 \")\""
-    '((1 . 2) "expected at least one expression before dot '.'"))
+    '((1 . 1) "expected at least one expression before dot '.'"))
 
   (check
     "(1 | 2)"
@@ -408,7 +408,7 @@
         atom@5..6
           int-number@5..6 \"2\"
         close-delim@6..7 \")\""
-    '((3 . 4) "expected an opening delimiter or an atom"))
+    '((3 . 1) "expected an opening delimiter or an atom"))
 
 
   (check
@@ -427,7 +427,7 @@
         atom@7..8
           int-number@7..8 \"2\"
         close-delim@8..9 \")\""
-    '((5 . 6) "multiple dots '.' not allowed inside list"))
+    '((5 . 1) "multiple dots '.' not allowed inside list"))
 
   (check
     "#(1 . 2)"
@@ -443,7 +443,7 @@
         atom@6..7
           int-number@6..7 \"2\"
         close-delim@7..8 \")\""
-    '((4 . 5) "dot '.' not allowed inside vector"))
+    '((4 . 1) "dot '.' not allowed inside vector"))
 
   (check
     "#vu8(1 . 2)"
@@ -457,7 +457,7 @@
         whitespace@8..9 \" \"
         int-number@9..10 \"2\"
         close-delim@10..11 \")\""
-    '((7 . 8) "dot '.' not allowed inside bytevector")))
+    '((7 . 1) "dot '.' not allowed inside bytevector")))
 
 (test-group
   "parser invalid tokens"
@@ -542,6 +542,23 @@
       atom@0..3
         string@0..3 \"\"\\\"\""
     '((0 . 3) "unterminated string"))
+
+  (check
+    (list->string '(#\" #\\ #\q))
+    "
+    root@0..3
+      atom@0..3
+        string@0..3 \"\"\\q\""
+    '((1 . 2) "invalid escape sequence \\q")
+    '((0 . 3) "unterminated string"))
+
+  (check
+    (list->string '(#\" #\\ #\q #\"))
+    "
+    root@0..4
+      atom@0..4
+        string@0..4 \"\"\\q\"\""
+    '((1 . 2) "invalid escape sequence \\q"))
 
   (check
     (list->string '(#\" #\h #\i))

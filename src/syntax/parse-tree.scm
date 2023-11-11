@@ -13,6 +13,7 @@
 	  pt-boolean?
 	  pt-boolean-value
 	  pt-char?
+	  pt-string?
 	  pt-list?
 	  pt-vector?
 	  pt-bytevector?
@@ -26,7 +27,8 @@
 		conifer-red-children
 		conifer-token-text)
 	  (only (syntax parser)
-		parse-char))
+		parse-char
+		parse-string))
 
   ;; Returns the s-exps of the `root` red-tree.
   (define pt-root-sexps
@@ -62,24 +64,39 @@
 		    (conifer-syntax-kind node)))
 	   node)))
 
+  ;; Returns the internal value for `boolean`.
+  ;;
+  ;; # Exceptions
+  ;;
+  ;; Throws an excpetion if `boolean`is not a `'true` or `'false`.
   (define pt-boolean-value
-    (lambda (atom)
+    (lambda (boolean)
       (cond
-	[(eq? 'true (conifer-syntax-kind atom)) #t]
-	[(eq? 'false (conifer-syntax-kind atom)) #f]
+	[(eq? 'true (conifer-syntax-kind boolean)) #t]
+	[(eq? 'false (conifer-syntax-kind boolean)) #f]
 	[else (assertion-violation
 		'pt-boolean-value
 		"expected a boolean red tree, found: ~a"
-		atom)])))
+		boolean)])))
 
-  ;; Returns the internal node if `node` is an atom, `#f` otherwise.
+  ;; Returns the inner character if `node` is a `'char`, `#f` otherwise.
   (define pt-char?
     (lambda (node)
       (and (eq? 'char (conifer-syntax-kind node))
 	   (let ([c (parse-char (conifer-token-text node))])
 	     (if (char? c)
 	       c
+	       ; replacement character �
 	       #\xFFFD)))))
+
+  ;; Returns the inner string if `node` is a `'string`, `#f` otherwise.
+  (define pt-string?
+    (lambda (node)
+      (and (eq? 'string (conifer-syntax-kind node))
+	   (let ([c (parse-string (conifer-token-text node))])
+	     (if (string? c)
+	       c
+	       "")))))
 
   ;; Returns `node` as-is if it is a list, `#f` otherwise.
   (define pt-list?

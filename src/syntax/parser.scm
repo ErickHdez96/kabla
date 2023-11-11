@@ -1,7 +1,8 @@
 (library
   (syntax parser)
   (export parse-tokens
-	  parse-char)
+	  parse-char
+	  parse-string)
   (import (rnrs base)
 	  (only (rnrs control)
 		when)
@@ -12,14 +13,15 @@
 		char-downcase)
 	  (only (srfi srfi-13)
 		string-prefix?)
-	  (only (ice-9 format)
+	  (only (srfi srfi-28)
 		format)
 	  (only (conifer)
 		conifer-green-node-builder
 		conifer-start-node
 		conifer-finish-node
 		conifer-finish-builder
-		conifer-push-token))
+		conifer-push-token)
+	  (common))
 
   (define-record-type
     parser
@@ -64,7 +66,9 @@
 	   (start-node p 'atom)
 	   (bump p)
 	   (finish-node p)
-	   (cons start (parser-offset p))]
+	   (cons start
+		 (- (parser-offset p)
+		    start))]
 
 	  ; parses a list starting with an open delimiter
 	  ; (<datum*>) | [<datum>*] | (<datum>+ . <datum>) | [<datum>+ . <datum>]
@@ -93,14 +97,18 @@
 				       [(string=? "(" (cdr peek-t)) ")"]
 				       [(string=? "[" (cdr peek-t)) "]"]))
 	   (finish-node p)
-	   (cons start (parser-offset p))]
+	   (cons start
+		 (- (parser-offset p)
+		    start))]
 
 	  [(token-abbrev? peek-t)
 	   (start-node p 'abbreviation)
 	   (bump p)
 	   (parse-datum p)
 	   (finish-node p)
-	   (cons start (parser-offset p))]
+	   (cons start
+		 (- (parser-offset p)
+		    start))]
 
 	  [(eq? 'open-vector peek-sk)
 	   (start-node p 'vector)
@@ -122,7 +130,9 @@
 
 	   (expect-close-delimiter p ")")
 	   (finish-node p)
-	   (cons start (parser-offset p))]
+	   (cons start
+		 (- (parser-offset p)
+		    start))]
 
 	  [(eq? 'open-bytevector peek-sk)
 	   (start-node p 'bytevector)
@@ -150,7 +160,9 @@
 
 	   (expect-close-delimiter p ")")
 	   (finish-node p)
-	   (cons start (parser-offset p))]
+	   (cons start
+		 (- (parser-offset p)
+		    start))]
 
 	  [else (emit-error-and-bump
 		  p
@@ -255,8 +267,7 @@
       (emit-error-span
 	p
 	(cons (parser-offset p)
-	      (+ (parser-offset p)
-		 (string-length (cdr (peek p)))))
+	      (string-length (cdr (peek p))))
 	msg)))
 
   (define emit-error-and-bump
@@ -281,21 +292,7 @@
 	     (when (string? e)
 	       (emit-error p e)))]
 	  [(string)
-	   ; TODO: Improve string validation
-	   (when (or (= 1 (string-length text))
-		     (not (char=? #\"
-				  (string-ref text
-					      (- (string-length text)
-						 1))))
-		     (and (char=? #\"
-				  (string-ref text
-					      (- (string-length text)
-						 1)))
-			  (char=? #\\
-				  (string-ref text
-					      (- (string-length text)
-						 2)))))
-	     (emit-error p "unterminated string"))]))))
+	   (validate-string p text)]))))
 
   (define at-eof?
     (lambda (p)
@@ -389,7 +386,6 @@
 		  [(string=? "space" char-name) #\space]
 		  [(string=? "delete" char-name) #\delete]
 		  [else (format
-			  #f
 			  "invalid character name: ~a"
 			  char-name)]))])))
 
@@ -418,4 +414,75 @@
 			  (- (char->integer c)
 			     (char->integer #\a))
 			  10))]
-		[else "invalid hex scalar value"]))))))))
+		[else "invalid hex scalar value"])))))))
+
+  (define validate-string
+    (lambda (p s)
+      ; scanner should only generate tokens for strings if they begin with "
+      (assert (and (>= (string-length s) 1)
+		   (char=? #\" (string-ref s 0))))
+      (if (= 1 (string-length s))
+	(emit-error p "unterminated string")
+	(let loop ([n 1])
+	  (cond
+	    ; The last two characters were an escape sequence and we reached past
+	    ; the end of the string.
+	    [(>= n (string-length s))
+	     (emit-error p "unterminated string")]
+	    [(= n (- (string-length s)
+			  1))
+	     (when (not (char=? #\" (string-ref s n)))
+	       (emit-error p "unterminated string"))]
+	    [(char=? #\\ (string-ref s n))
+	     (if (= (+ n 1) (string-length s))
+	       (emit-error p "unterminated string")
+	       (case (string-ref s (+ n 1))
+		 [(#\a #\b #\t #\n #\v #\f #\r #\" #\\)
+		  (loop (+ n 2))]
+		 ; TODO: accept whitespace and hex escape sequences after \
+		 [else
+		   (emit-error-span
+		     p
+		     (cons (+ (parser-offset p)
+			      n)
+			   2)
+		     (format
+		       "invalid escape sequence \\~a"
+		       (string-ref s (+ n 1))))
+		   (loop (+ n 2))]))]
+	    [else (loop (+ n 1))])))))
+
+  ;; Parses the string, replacing the escape sequences with their corresponding
+  ;; values. Always returns a string, even if `s` is an invalid string.
+  (define parse-string
+    (lambda (s)
+      (let loop ([n 1]
+		 [acc '()])
+	(cond
+	  ; if we're past the end of the string, or we're at the last character
+	  ; and it is a ", simply return the parsed string.
+	  [(or (>= n (string-length s))
+	       (and (= (+ n 1) (string-length s))
+		    (char=? #\" (string-ref s n))))
+	   (list->string (reverse acc))]
+	  [(char=? #\\ (string-ref s n))
+	   (if (>= (+ n 1) (string-length s))
+	     (loop (+ n 1) acc)
+	     (loop (+ n 2)
+		   (cons (case (string-ref s (+ n 1))
+			   [(#\a) #\x7]
+			   [(#\b) #\x8]
+			   [(#\t) #\x9]
+			   [(#\n) #\xA]
+			   [(#\v) #\xB]
+			   [(#\f) #\xC]
+			   [(#\r) #\xD]
+			   [(#\") #\"]
+			   [(#\\) #\\]
+			   ; replacement character �
+			   [else #\xFFFD])
+			 ; escape whitespace and hex scalar values
+			 acc)))]
+	  [else (loop (+ n 1)
+		      (cons (string-ref s n)
+			    acc))])))))
