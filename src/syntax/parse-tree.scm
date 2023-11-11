@@ -14,6 +14,7 @@
 	  pt-boolean-value
 	  pt-char?
 	  pt-string?
+	  pt-identifier?
 	  pt-list?
 	  pt-vector?
 	  pt-bytevector?
@@ -28,7 +29,8 @@
 		conifer-token-text)
 	  (only (syntax parser)
 		parse-char
-		parse-string))
+		parse-string)
+	  (common))
 
   ;; Returns the s-exps of the `root` red-tree.
   (define pt-root-sexps
@@ -98,12 +100,22 @@
 	       c
 	       "")))))
 
-  ;; Returns `node` as-is if it is a list, `#f` otherwise.
+  ;; Returns the inner text as a symbol if `node` is a variable, `#f` otherwise.
+  (define pt-identifier?
+    (lambda (node)
+      (and (eq? 'identifier (conifer-syntax-kind node))
+	   (string->symbol (conifer-token-text node)))))
+
+  ;; Returns the s-expressions of `node` if it is a list, `#f` otherwise.
   (define pt-list?
     (lambda (node)
       (and (eq? 'list
 		(conifer-syntax-kind node))
-	   node)))
+	   (filter
+	     (lambda (x) x)
+	     (map
+	       pt-sexp?
+	       (conifer-red-children node))))))
 
   ;; Returns `node` as-is if it is a vector, `#f` otherwise.
   (define pt-vector?

@@ -1,20 +1,18 @@
 (import (srfi srfi-64)
 	(syntax shortcuts)
-	(except (syntax ast)
-		make-ast-expr)
-	(rename (syntax ast)
-		(make-ast-expr expr)))
+	(syntax ast))
 
 (test-runner-current (test-runner-simple))
 
-(define pair->item
+(define any->item
   (lambda (p)
     (cond
+      [(ast-expr? p) p]
       [(or (char? (cdr p))
 	   (boolean? (cdr p))
 	   (string=? (cdr p)))
-       (expr (car p) (cdr p))]
-      [else (error 'pair->item
+       (make-ast-expr (car p) (cdr p))]
+      [else (error 'any->item
 		   "expected a valid expression pair: ~a"
 		   p)])))
 
@@ -22,17 +20,18 @@
   (lambda (str expected-ast . expected-errors)
     (let ([result (expand-str str)])
       (cond
-	[(and (pair? expected-ast)
-	      (not (pair? (cdr expected-ast))))
+	[(or (ast-expr? expected-ast)
+	     (and (pair? expected-ast)
+		  (not (pair? (cdr expected-ast)))))
 	 (test-eqv
 	   1
 	   (length (ast-root-items (car result))))
 	 (test-equal
-	   (pair->item expected-ast)
+	   (any->item expected-ast)
 	   (car (ast-root-items (car result))))]
 	[else
 	  (test-equal
-	    (map pair->item expected-ast)
+	    (map any->item expected-ast)
 	    (ast-root-items (car result)))])
 
       (test-equal
@@ -174,6 +173,46 @@
       '((0 . 4) . "\\"))))
 
 (test-group
+  "expander identifiers"
+  (check
+    "a"
+    '((0 . 1) . a))
+
+  (check
+    "set!"
+    '((0 . 4) . set!))
+
+  (check
+    "hello-world"
+    '((0 . 11) . hello-world)))
+
+(test-group
+  "expander procedure calls"
+  (check
+    "(f)"
+    (make-ast-proc-call
+      (cons 0 3)
+      (make-ast-expr
+	(cons 1 1)
+	'f)
+	'()))
+
+  (check
+    "(char=? #\\a #\\a)"
+    (make-ast-proc-call
+      (cons 0 16)
+      (make-ast-expr
+	(cons 1 6)
+	'char=?)
+	(list
+	  (make-ast-expr
+	    (cons 8 3)
+	    #\a)
+	  (make-ast-expr
+	    (cons 12 3)
+	    #\a)))))
+
+(test-group
   "expander multiple atoms"
   (check
     "#t #f"
@@ -201,4 +240,22 @@
     (list->string '(#\" #\\ #\q))
     '((0 . 3) . "\xFFFD;")
     '(((1 . 2) "invalid escape sequence \\q")
-      ((0 . 3) "unterminated string"))))
+      ((0 . 3) "unterminated string")))
+
+  (check
+    "()"
+    '()
+    '(((0 . 2) "empty lists aren't allowed" (#f . "try '()"))))
+
+  (check
+    "(id ())"
+    (make-ast-proc-call
+      (cons 0 7)
+      (make-ast-expr
+	(cons 1 2)
+	'id)
+      (list
+	(make-ast-expr
+	  (cons 4 2)
+	  '())))
+    '(((4 . 2) "empty lists aren't allowed" (#f . "try '()")))))

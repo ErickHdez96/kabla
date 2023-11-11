@@ -1,7 +1,8 @@
 (library
   (env)
   (export make-root-env
-	  make-child-env)
+	  make-child-env
+	  env-lookup)
   (import (rnrs base)
 	  (only (rnrs control)
 		when)
@@ -9,6 +10,7 @@
 		define-record-type)
 	  (only (rnrs hashtables)
 		make-hashtable
+		hashtable-ref
 		equal-hash))
 
   (define-record-type
@@ -30,4 +32,16 @@
 	  'make-child-env
 	  "parent must be an environment: ~a"
 	  p))
-      (make-env p (make-hashtable equal-hash string=?)))))
+      (make-env p (make-hashtable equal-hash string=?))))
+
+  (define env-lookup
+    (lambda (e k)
+      (cond
+	[(hashtable-ref (env-bindings e)
+			k
+			#f)
+	 => (lambda (res) res)]
+	[(env-parent e)
+	 (env-lookup (env-parent e)
+		     k)]
+	[else #f]))))

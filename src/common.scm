@@ -3,8 +3,12 @@
   (export char-utf8-len
 	  fmap
 	  err
+	  make-hint
+	  make-hint-with-span
 	  is-error?
-	  dbg)
+	  is-valid?
+	  dbg
+	  and-then)
   (import (rnrs base)
 	  (rnrs io simple)
 	  (rnrs))
@@ -18,13 +22,23 @@
 	[(<= n #xFFFF) 3]
 	[else 4])))
 
-  ;; Returns a pair representing an error from a function.
+  ;; Returns a triple representing an error from a function. The last element
+  ;; may be a pair '(hint . <hint>).
   (define err
     (lambda (e . extra)
       (cons 'error
-	    (if (null? extra)
-	      e
-	      (cons e extra)))))
+	     (if (null? extra)
+	       e
+	       (cons e extra)))))
+
+  (define make-hint
+    (lambda (msg)
+      (make-hint-with-span #f msg)))
+
+  (define make-hint-with-span
+    (lambda (span msg)
+      (cons span
+	    msg)))
 
   ;; Returns `#t` if `x` is an error generated from `err`.
   (define is-error?
@@ -52,4 +66,40 @@
 	 (display ": ")
 	 (display t)
 	 (newline)
-	 t)])))
+	 (newline)
+	 t)]))
+
+  ;; Returns `#f` if `x` is `#f` or an error, a truthy value otherwise.
+  (define is-valid?
+    (lambda (x)
+      (and x
+	   (not (and (pair? x)
+		     (eq? 'error (car x)))))))
+
+  (define-syntax and-then
+    (syntax-rules (->)
+      [(_ cond
+	  (-> x body bodys ...))
+       (let ([t cond])
+	 (if (is-valid? t)
+	   ((lambda x body bodys ...)
+	    t)
+	   t))]
+      [(_ cond
+	  fn)
+       (let ([t cond])
+	 (if (is-valid? t)
+	   (fn t)
+	   t))]
+      [(_ cond
+	  fn
+	  rest ...)
+       (and-then
+	 (and-then cond fn)
+	 rest ...)]
+      [(_ cond
+	  (x body bodys ...)
+	  rest ...)
+       (and-then
+	 (and-then cond (x body bodys ...))
+	 rest ...)])))

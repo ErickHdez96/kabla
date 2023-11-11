@@ -10,10 +10,17 @@
 	  ast-boolean?
 	  ast-char?
 	  ast-string?
-	  ast-variable?)
+	  ast-variable?
+	  make-ast-proc-call
+	  ast-proc-call?
+	  ast-proc-call-span
+	  ast-proc-call-fn
+	  ast-proc-call-args)
   (import (rnrs base)
 	  (only (rnrs records syntactic)
-		define-record-type))
+		define-record-type)
+	  (only (rnrs lists)
+		cons*))
 
   (define-record-type
     ast-root
@@ -63,4 +70,29 @@
   (define ast-variable?
     (lambda (e)
       (and (ast-expr? e)
-	   (symbol? (ast-expr-value e))))))
+	   (symbol? (ast-expr-value e)))))
+
+  (define make-ast-proc-call
+    (lambda (span fn args)
+      (make-ast-expr
+	span
+	(cons* 'proc-call
+	       fn
+	       (if (list? args)
+		 (list->vector args)
+		 args)))))
+
+  (define ast-proc-call?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'proc-call (car (ast-expr-value e))))))
+
+  (define ast-proc-call-fn
+    (lambda (e)
+      (assert (ast-proc-call? e))
+      (cadr (ast-expr-value e))))
+
+  (define ast-proc-call-args
+    (lambda (e)
+      (assert (ast-proc-call? e))
+      (cddr (ast-expr-value e)))))
