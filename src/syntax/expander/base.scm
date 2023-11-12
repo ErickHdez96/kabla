@@ -16,7 +16,10 @@
 		make-ast-unspecified
 		make-ast-if
 		make-ast-define
-		make-ast-identifier)
+		make-ast-identifier
+		make-ast-lambda
+		make-ast-let
+		ast-define?)
 	  (only (syntax parse-tree)
 		pt-atom?
 		pt-identifier?
@@ -27,29 +30,18 @@
 		pt-span)
 	  (only (syntax expander)
 		expand-datum
-		expand-emit-error)
+		expand-emit-error
+		expand-take-items!)
+	  (only (syntax expander base lambda)
+		keyword-lambda)
+	  (only (syntax expander base common)
+		close-delim-or-dot-span
+		expected-closing-delim
+		maybe-unexpected-dot)
 	  (only (env)
 		make-root-env
 		env-insert!)
 	  (common))
-
-  ;; Environment with all the keywords from (rnrs base).
-  (define RNRS-BASE-ENV
-    (let ([env (make-root-env)])
-      (env-insert!
-	env
-	'if
-	(cons
-	  'keyword-expr
-	  keyword-if))
-
-      (env-insert!
-	env
-	'define
-	(cons
-	  'keyword-def
-	  keyword-define))
-      env))
 
   ;; Expands a `define` definition.
   ;; <define> → ( define <var> <expr>? )
@@ -69,8 +61,9 @@
 	[(and-then (pt-atom? (cadr elems))
 		   pt-identifier?)
 	 => (lambda (var)
-	      (let ([expr (and (>= elems-length 3)
-			       (expand-datum e (caddr elems) 'expr))])
+	      (let ([expr (or (and (>= elems-length 3)
+				   (expand-datum e (caddr elems) 'expr))
+			      (make-ast-unspecified (pt-span node)))])
 		(when (>= elems-length 4)
 		  (expand-emit-error
 		    e
@@ -145,48 +138,27 @@
 	  true
 	  false))))
 
-  ;; Emits an error if `dot` is not `#f`. `.` is not allowed in base
-  ;; keywords
-  (define maybe-unexpected-dot
-    (lambda (e node dot)
-      (when dot
-	(expand-emit-error
-	  e
-	  (pt-span (find pt-dot? (conifer-red-children node)))
-	  "dot '.' not allowed in this context"))))
+  ;; Environment with all the keywords from (rnrs base).
+  (define RNRS-BASE-ENV
+    (let ([env (make-root-env)])
+      (env-insert!
+	env
+	'define
+	(cons
+	  'keyword-def
+	  keyword-define))
 
-  ;; Returns the span of the left-most `.`, closing delimiter, or the
-  ;; right-most child of `node`.
-  (define close-delim-or-dot-span
-    (lambda (node)
-      (let search ([elems (conifer-red-children node)])
-	(cond
-	  [(null? elems)
-	   (error 'rparen-or-dot
-		  "should have returned a span by now")]
-	  [(null? (cdr elems))
-	   (pt-span (car elems))]
-	  [(pt-close-delim? (car elems)) => pt-span]
-	  [(pt-dot? (car elems)) => pt-span]
-	  [else (search (cdr elems))]))))
+      (env-insert!
+	env
+	'if
+	(cons
+	  'keyword-expr
+	  keyword-if))     
 
-  ;; Returns a character representing the expected closing delimiter for `node`
-  ;; depending on its opening delimiter. For error purposes.
-  (define expected-closing-delim
-    (lambda (node)
-      (let ([children (conifer-red-children node)])
-	(assert (not (null? children)))
-	(cond
-	  [(pt-open-delim? (car children))
-	   => (lambda (od)
-		(let ([od (conifer-token-text od)])
-		  (cond
-		    [(string=? "(" od) #\)]
-		    [(string=? "[" od) #\]]
-		    [(string=? "{" od) #\}]
-		    [else (error 'expected-closing-delim
-				 "invalid open delimiter ~a"
-				 od)])))]
-	  [else (error 'expected-closing-delim
-		       "invalid open delimiter ~a"
-		       (car children))])))))
+      (env-insert!
+	env
+	'lambda
+	(cons
+	  'keyword-expr
+	  keyword-lambda))     
+      env)))

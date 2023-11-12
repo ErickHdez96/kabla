@@ -5,6 +5,9 @@
 	  ast-root-items
 	  make-ast-define
 	  ast-define?
+	  ast-define-span
+	  ast-define-variable
+	  ast-define-expr
 	  ast-span
 	  ast-variable
 	  ast-expr
@@ -30,7 +33,11 @@
 	  make-ast-list
 	  ast-list?
 	  make-ast-if
-	  ast-if?)
+	  ast-if?
+	  make-ast-lambda
+	  ast-lambda?
+	  make-ast-let
+	  ast-let?)
   (import (rnrs base)
 	  (only (rnrs records syntactic)
 		define-record-type)
@@ -187,4 +194,65 @@
   (define ast-if?
     (lambda (e)
       (and (ast-expr? e)
-	   (eq? 'if (ast-expr-kind e))))))
+	   (eq? 'if (ast-expr-kind e)))))
+
+  ;; Returns a new `lambda` node.
+  (define make-ast-lambda
+    (lambda (span vars rest body)
+      (assert (list? vars))
+      (for-each
+	(lambda (v)
+	  (assert (ast-identifier? v)))
+	vars)
+      (assert (or (ast-identifier? rest)
+		  (not rest)))
+      (assert (and (ast-let? body)
+		   (eq? 'letrec* (ast-expr-kind body))))
+
+      (make-ast-expr
+	span
+	'lambda
+	(cons* vars
+	       rest
+	       body))))
+
+  ;; Returns `#t` if `e` is a lambda expression.
+  (define ast-lambda?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'lambda (ast-expr-kind e)))))
+
+  ;; Returns a new `lambda` node.
+  (define make-ast-let
+    (lambda (span kind vars exprs)
+      (assert (or (eq? 'let kind)
+		  (eq? 'let* kind)
+		  (eq? 'letrec kind)
+		  (eq? 'letrec* kind)))
+      (assert (list? vars))
+      (for-each
+	(lambda (var)
+	  (assert (and (pair? var)
+		       (ast-identifier? (car var))
+		       (ast-expr? (cdr var)))))
+	vars)
+      (assert (list? exprs))
+      (for-each
+	(lambda (e)
+	  (assert (ast-expr? e)))
+	exprs)
+
+      (make-ast-expr
+	span
+	kind
+	(cons* vars
+	       exprs
+	       ))))
+
+  ;; Returns `#t` if `e` is a let/let*/letrec/letrec* expression.
+  (define ast-let?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (case (ast-expr-kind e)
+	     [(let let* letrec letrec*) #t]
+	     [else #f])))))

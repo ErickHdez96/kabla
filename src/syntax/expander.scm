@@ -41,9 +41,12 @@
   (syntax expander)
   (export expand-parse-tree
 	  expand-datum
+	  expand-deferred-items
 	  (rename (enter-scope expand-enter-scope)
 		  (exit-scope expand-exit-scope)
-		  (emit-error expand-emit-error)))
+		  (emit-error expand-emit-error)
+		  (take-items! expand-take-items!)
+		  (push-item! expand-push-item!)))
   (import (rnrs base)
 	  (only (rnrs control)
 		when)
@@ -151,7 +154,7 @@
 	    '())))
 
       (for-each
-	(lambda (d) (expand-datum expander d 'top-level))
+	(lambda (d) (expand-datum expander d 'body))
 	(pt-root-sexps pt))
       (expand-deferred-items expander)
 
@@ -164,8 +167,8 @@
       (cond
 	[(pt-atom? datum) => (lambda (atom)
 			       (case ctx
-				 [(top-level) (defer-datum e 'datum datum)]
-				 [(expr) (expand-atom e atom ctx)]
+				 [(body) (defer-datum e 'datum datum)]
+				 [(expr) (expand-atom e atom)]
 				 [else (error
 					 'expand-datum
 					 "unexpected context ~a"
@@ -209,7 +212,7 @@
 
   ;; Expands the inner child of an atom red-tree.
   (define expand-atom
-    (lambda (e atom ctx)
+    (lambda (e atom)
       (let ([span (pt-span atom)])
 	(cond
 	  [(pt-boolean? atom) (make-ast-boolean span (pt-boolean-value atom))]
@@ -242,37 +245,51 @@
 	      (make-ast-null span)]
 	     [else (defer-datum e 'datum parent)])]
 
-	  [else (case ctx
-		  [(top-level) (if (keyword-def-list? e before-dot)
-				 (defer-define e parent before-dot)
-				 (defer-datum e 'datum parent))]
-		  [(expr any)
-		   (cond
-		     [(keyword-expr-list? e before-dot)
-		      => (lambda (transformer)
-			   (transformer e
-					parent
-					before-dot
-					(if (null? after-dot)
-					  #f
-					  (car after-dot))))]
-		     [else
-		       (let ([elems (map (lambda (d) (expand-datum e d 'expr))
-					 before-dot)])
-			 (when (not (null? after-dot))
-			   (emit-error
-			     e
-			     (pt-span
-			       (find
-				 pt-dot?
-				 (conifer-red-children parent)))
-			     "dot '.' not allowed in this context"))
-			 (make-ast-list
-			   span
-			   elems))])]
-		  [else (error 'expand-list
-			       "can't expand list ~a"
-			       parent)])]))))
+	  [else
+	    (case ctx
+	      ; everything gets deferred in the top level
+	      ; for error recovery purposes, also in the body.
+	      [(body)
+	       (if (keyword-def-list? e before-dot)
+		 (defer-define e parent before-dot)
+		 (defer-datum e 'datum parent))]
+	      ; in an expression context we expand everything
+	      [(expr)
+	       (cond
+		 [(keyword-def-list? e before-dot)
+		  (expand-emit-error
+		    e
+		    (pt-span parent)
+		    "definitions are not allowed in this context")
+		  ; we still defer it for error recovery purposes
+		  (defer-define e parent before-dot)
+		  (make-ast-unspecified
+		    (pt-span parent))]
+		 [(keyword-expr-list? e before-dot)
+		  => (lambda (transformer)
+		       (transformer e
+				    parent
+				    before-dot
+				    (if (null? after-dot)
+				      #f
+				      (car after-dot))))]
+		 [else
+		   (let ([elems (map (lambda (d) (expand-datum e d 'expr))
+				     before-dot)])
+		     (when (not (null? after-dot))
+		       (emit-error
+			 e
+			 (pt-span
+			   (find
+			     pt-dot?
+			     (conifer-red-children parent)))
+			 "dot '.' not allowed in this context"))
+		     (make-ast-list
+		       span
+		       elems))])]
+	      [else (error 'expand-list
+			   "can't expand list ~a"
+			   parent)])]))))
 
   ;; Returns the associated transformer if the first element of `elems` is an
   ;; expression keyword (e.g. `if`, `lamdba`, etc.)
@@ -370,8 +387,24 @@
 	e
 	(make-state
 	  '()
+	  '()
 	  (make-child-env
 	    (current-env e))))))
+
+  ;; Discards the current state, pops the last saved state and sets it as the
+  ;; active one.
+  (define exit-scope
+    (lambda (e)
+      (when (null? (expander-saved-states e))
+	(assertion-violation
+	  'exit-scope
+	  "tried to exit from the root scope"))
+      (expander-state-set!
+	e
+	(car (expander-saved-states e)))
+      (expander-saved-states-set!
+	e
+	(cdr (expander-saved-states e)))))
 
   (define emit-error
     (lambda (e span msg)
@@ -390,21 +423,6 @@
 	  (list span msg hint)
 	  (expander-errors e)))
       #f))
-
-  ;; Discards the current state, pops the last saved state and sets it as the
-  ;; active one.
-  (define exit-scope
-    (lambda (e)
-      (when (null? (expander-saved-states e))
-	(assertion-violation
-	  'exit-scope
-	  "tried to exit from the root scope"))
-      (expander-state-set!
-	e
-	(car (expander-saved-states e)))
-      (expander-saved-states-set!
-	e
-	(cdr (expander-saved-states e)))))
 
   ;; Looks up `id` in the current environment (recursively) and returns its
   ;; binding or `#f`.

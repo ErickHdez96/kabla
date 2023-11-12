@@ -9,13 +9,23 @@
     (cond
       [(ast-expr? p) p]
       [(ast-define? p) p]
-      [(or (char? (cdr p))
-	   (boolean? (cdr p))
-	   (string=? (cdr p)))
-       (make-ast-expr (car p) (cdr p))]
       [else (error 'any->item
 		   "expected a valid expression pair: ~a"
 		   p)])))
+
+(define-syntax chek
+  (syntax-rules ()
+    [(_ str expected-item)
+     (let ([result (expand-str str)])
+       (test-eqv
+	 1
+	 (length (ast-root-items (car result))))
+       (test-equal
+	 '()
+	 (cdr result))
+       (test-equal
+	 expected-item
+	 (car (ast-root-items (car result)))))]))
 
 (define check
   (lambda (str expected-ast . expected-errors)
@@ -372,7 +382,7 @@
     (make-ast-define
       '(0 . 10)
       (make-ast-identifier '(8 . 1) 'v)
-      #f))
+      (make-ast-unspecified '(0 . 10))))
 
   (check
     "(define b #t)"
@@ -435,8 +445,151 @@
       (make-ast-identifier
 	'(8 . 1)
 	'a)
-      #f)
+      (make-ast-unspecified '(0 . 15)))
     '(((10 . 1) "dot '.' not allowed in this context"))))
+
+(test-group
+  "expander lambda"
+
+  (check
+    "(lambda (x) x)"
+    (make-ast-lambda
+      '(0 . 14)
+      (list
+	(make-ast-identifier '(9 . 1) 'x))
+      #f
+      (make-ast-let
+	'(0 . 14)
+	'letrec*
+	'()
+	(list
+	  (make-ast-identifier '(12 . 1) 'x)))))
+
+  (check
+    "(lambda (x y) y)"
+    (make-ast-lambda
+      '(0 . 16)
+      (list
+	(make-ast-identifier '(9 . 1) 'x)
+	(make-ast-identifier '(11 . 1) 'y))
+      #f
+      (make-ast-let
+	'(0 . 16)
+	'letrec*
+	'()
+	(list
+	  (make-ast-identifier '(14 . 1) 'y)))))
+
+  (check
+    "(lambda (x . rest) rest)"
+    (make-ast-lambda
+      '(0 . 24)
+      (list
+	(make-ast-identifier '(9 . 1) 'x))
+      (make-ast-identifier '(13 . 4) 'rest)
+      (make-ast-let
+	'(0 . 24)
+	'letrec*
+	'()
+	(list
+	  (make-ast-identifier '(19 . 4) 'rest)))))
+
+  (check
+    "(lambda x x)"
+    (make-ast-lambda
+      '(0 . 12)
+      '()
+      (make-ast-identifier '(8 . 1) 'x)
+      (make-ast-let
+	'(0 . 12)
+	'letrec*
+	'()
+	(list
+	  (make-ast-identifier '(10 . 1) 'x)))))
+
+  (check
+    "(lambda x (x) (x))"
+    (make-ast-lambda
+      '(0 . 18)
+      '()
+      (make-ast-identifier '(8 . 1) 'x)
+      (make-ast-let
+	'(0 . 18)
+	'letrec*
+	'()
+	(list
+	  (make-ast-list
+	    '(10 . 3)
+	    (list
+	      (make-ast-identifier '(11 . 1) 'x)))
+	  (make-ast-list
+	    '(14 . 3)
+	    (list
+	      (make-ast-identifier '(15 . 1) 'x)))))))
+
+  (check
+    "(lambda (x) (define a x) a)"
+    (make-ast-lambda
+      '(0 . 27)
+      (list (make-ast-identifier '(9 . 1) 'x))
+      #f
+      (make-ast-let
+	'(0 . 27)
+	'letrec*
+	(list
+	  (cons (make-ast-identifier '(20 . 1) 'a)
+		(make-ast-identifier '(22 . 1) 'x)))
+	(list
+	  (make-ast-identifier '(25 . 1) 'a)))))
+
+  (check
+    "(lambda (x) x (define a x))"
+    (make-ast-lambda
+      '(0 . 27)
+      (list (make-ast-identifier '(9 . 1) 'x))
+      #f
+      (make-ast-let
+	'(0 . 27)
+	'letrec*
+	(list
+	  (cons (make-ast-identifier '(22 . 1) 'a)
+		(make-ast-identifier '(24 . 1) 'x)))
+	(list
+	  (make-ast-identifier '(12 . 1) 'x))))
+    '(((14 . 12) "definitions are not allowed after the first expression")))
+
+  (check
+    "(lambda (#f . #t) x)"
+    (make-ast-lambda
+      '(0 . 20)
+      '()
+      (make-ast-identifier
+	'(14 . 2)
+	(string->symbol "|#t|"))
+      (make-ast-let
+	'(0 . 20)
+	'letrec*
+	'()
+	(list
+	  (make-ast-identifier '(18 . 1) 'x))))
+    '(((9 . 2) "expected an identifier, found #f")
+      ((14 . 2) "expected an identifier, found #t")))
+
+  (check
+    "(lambda #t x)"
+    (make-ast-lambda
+      '(0 . 13)
+      '()
+      (make-ast-identifier
+	'(8 . 2)
+	(string->symbol "|#t|"))
+      (make-ast-let
+	'(0 . 13)
+	'letrec*
+	'()
+	(list
+	  (make-ast-identifier '(11 . 1) 'x))))
+    '(((8 . 2) "expected an identifier or an open delimiter, found #t"))))
 
 (test-group
   "expander multiple atoms"
