@@ -3,6 +3,11 @@
   (export make-ast-root
 	  ast-root?
 	  ast-root-items
+	  make-ast-define
+	  ast-define?
+	  ast-span
+	  ast-variable
+	  ast-expr
 	  make-ast-expr
 	  ast-expr?
 	  ast-expr-span
@@ -45,6 +50,19 @@
       ;; Vector of libraries being imported
       library-names))
 
+  ;; <define> → ( define <var> <expr>? )
+  ;;	      | ( define ( <var> <formals> ) <expr> )
+  ;;	      | ( define ( <var> . <formal> ) <expr> )
+  (define-record-type
+    ast-define
+    (fields
+      ; Pair of [start, end) into the parsed text.
+      span
+      ; The name of the variable being defined (as an ast-expr.)
+      variable
+      ; ast-expr used to initialize `variable`, `#f` if none.
+      expr))
+
   ;; <expr> → <literal> | <list> | <vector> | <lambda> | <if> | <quote>
   ;;	    | <set!> | <pair>
   ;; <literal> → <number> | <boolean> | <character> | <string> | <bytevector>
@@ -52,7 +70,7 @@
   (define-record-type
     ast-expr
     (fields
-      ; Pair of [start, end) into the parsed text.
+      ; Pair of [start, length] into the parsed text.
       span
       ; A symbol representing the kind of the expression.
       kind

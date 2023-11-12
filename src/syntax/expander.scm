@@ -85,7 +85,8 @@
 	  (only (env)
 		make-root-env
 		make-child-env
-		env-lookup)
+		env-lookup
+		env-insert!)
 	  (common))
 
   (define-record-type
@@ -183,6 +184,22 @@
 	  (case (car d)
 	    [(datum) (and-then (expand-datum e (cdr d) 'expr)
 			       [-> i (push-item! e i)])]
+	    [(def)
+	     (let ([elems (pt-list? (cdr d))])
+	       (cond
+		 [(and elems
+		       (keyword-def-list? e (car elems)))
+		  => (lambda (transformer)
+		       (and-then (transformer
+				   e
+				   (cdr d)
+				   (car elems)
+				   (and (not (null? (cdr elems)))
+					(cadr elems)))
+				 [-> i (push-item! e i)]))]
+		 [else (error 'expand-deferred-items
+			      "invalid deferred definition ~a"
+			      d)]))]
 	    [else (error
 		    'expand-deferred-items
 		    "unknown deferred item ~a: ~a"
@@ -226,8 +243,10 @@
 	     [else (defer-datum e 'datum parent)])]
 
 	  [else (case ctx
-		  [(top-level) (defer-datum e 'datum parent)]
-		  [(expr)
+		  [(top-level) (if (keyword-def-list? e before-dot)
+				 (defer-define e parent before-dot)
+				 (defer-datum e 'datum parent))]
+		  [(expr any)
 		   (cond
 		     [(keyword-expr-list? e before-dot)
 		      => (lambda (transformer)
@@ -267,6 +286,18 @@
 					   (car binding))
 				      (cdr binding))]))))
 
+  ;; Returns the associated transformer if the first element of `elems` is a
+  ;; definition keyword (i.e. `define`).
+  (define keyword-def-list?
+    (lambda (e elems)
+      (and (not (null? elems))
+	   (and-then (pt-atom? (car elems))
+		     pt-identifier?
+		     [-> id (lookup e id)]
+		     [-> binding (and (eq? 'keyword-def
+					   (car binding))
+				      (cdr binding))]))))
+
   ;; Pushes `expr` into the deferred list.
   (define defer-datum
     (lambda (e kind datum)
@@ -276,6 +307,23 @@
 	  (cons (cons kind datum)
 		(state-deferred state)))
 	#f)))
+
+  ;; Defers the define node `parent` to be lowered later.
+  (define defer-define
+    (lambda (e parent elems)
+      (when (>= (length elems) 2)
+	(cond
+	  [(or (and-then (pt-atom? (cadr elems))
+			 pt-identifier?)
+	       (and-then (pt-list? (cadr elems))
+			 [-> children (and (not (null? children))
+					   (pt-atom? (car children)))]
+			 pt-identifier?))
+	   => (lambda (name)
+		(insert! e
+			 name
+			 'value))]))
+      (defer-datum e 'def parent)))
 
   ;; Returns the current active environment.
   (define current-env
@@ -331,7 +379,8 @@
 	e
 	(cons
 	  (list span msg)
-	  (expander-errors e)))))
+	  (expander-errors e)))
+      #f))
 
   (define emit-error-with-hint
     (lambda (e span msg hint)
@@ -339,7 +388,8 @@
 	e
 	(cons
 	  (list span msg hint)
-	  (expander-errors e)))))
+	  (expander-errors e)))
+      #f))
 
   ;; Discards the current state, pops the last saved state and sets it as the
   ;; active one.
@@ -362,4 +412,12 @@
     (lambda (e id)
       (env-lookup
 	(current-env e)
-	id))))
+	id)))
+
+  ;; Inserts a new binding from `id` to `binding` in the current environment.
+  (define insert!
+    (lambda (e id binding)
+      (env-insert!
+	(current-env e)
+	id
+	binding))))

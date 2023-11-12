@@ -8,6 +8,7 @@
   (lambda (p)
     (cond
       [(ast-expr? p) p]
+      [(ast-define? p) p]
       [(or (char? (cdr p))
 	   (boolean? (cdr p))
 	   (string=? (cdr p)))
@@ -21,8 +22,7 @@
     (let ([result (expand-str str)])
       (cond
 	[(or (ast-expr? expected-ast)
-	     (and (pair? expected-ast)
-		  (not (pair? (cdr expected-ast)))))
+	     (ast-define? expected-ast))
 	 (test-eqv
 	   1
 	   (length (ast-root-items (car result))))
@@ -364,6 +364,79 @@
       (make-ast-boolean
 	'(10 . 2) #t))
     '(((13 . 2) "expected ], found #f"))))
+
+(test-group
+  "expander define"
+  (check
+    "(define v)"
+    (make-ast-define
+      '(0 . 10)
+      (make-ast-identifier '(8 . 1) 'v)
+      #f))
+
+  (check
+    "(define b #t)"
+    (make-ast-define
+      '(0 . 13)
+      (make-ast-identifier '(8 . 1) 'b)
+      (make-ast-boolean '(10 . 2) #t)))
+
+  (check
+    "(define a #t)
+     (define b a)"
+    (list
+      (make-ast-define
+	'(0 . 13)
+	(make-ast-identifier '(8 . 1) 'a)
+	(make-ast-boolean '(10 . 2) #t))
+      (make-ast-define
+	'(19 . 12)
+	(make-ast-identifier '(27 . 1) 'b)
+	(make-ast-identifier '(29 . 1) 'a))))
+
+  (check
+    "(define)"
+    '()
+    '(((7 . 1) "expected a variable name or open delimiter")))
+
+  (check
+    "(define #t)"
+    '()
+    '(((8 . 2) "expected an identifier or an open delimiter, found #t")))
+
+  (check
+    "(define a #t #f)"
+    (make-ast-define
+      '(0 . 16)
+      (make-ast-identifier
+	'(8 . 1)
+	'a)
+      (make-ast-boolean
+	'(10 . 2)
+	#t))
+    '(((13 . 2) "expected ), found #f")))
+
+  (check
+    "[define a #t #f]"
+    (make-ast-define
+      '(0 . 16)
+      (make-ast-identifier
+	'(8 . 1)
+	'a)
+      (make-ast-boolean
+	'(10 . 2)
+	#t))
+    '(((13 . 2) "expected ], found #f")))
+
+  (check
+    "(define a . #f)"
+    (make-ast-define
+      '(0 . 15)
+      (make-ast-identifier
+	'(8 . 1)
+	'a)
+      #f)
+    '(((10 . 1) "dot '.' not allowed in this context"))))
 
 (test-group
   "expander multiple atoms"
