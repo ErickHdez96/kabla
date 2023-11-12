@@ -395,6 +395,30 @@
     '((1 . 1) "expected at least one expression before dot '.'"))
 
   (check
+    "(1 .)"
+    "
+    root@0..5
+      list@0..5
+        open-delim@0..1 \"(\"
+        atom@1..2
+          int-number@1..2 \"1\"
+        whitespace@2..3 \" \"
+        dot@3..4 \".\"
+        close-delim@4..5 \")\""
+    '((4 . 1) "expected at least one expression after dot '.'"))
+
+  (check
+    "(.)"
+    "
+    root@0..3
+      list@0..3
+        open-delim@0..1 \"(\"
+        dot@1..2 \".\"
+        close-delim@2..3 \")\""
+    '((1 . 1) "expected at least one expression before dot '.'")
+    '((2 . 1) "expected at least one expression after dot '.'"))
+
+  (check
     "(1 | 2)"
     "
     root@0..7

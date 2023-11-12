@@ -76,12 +76,16 @@
 	   (start-node p 'list)
 	   (push-delimiter p (cdr peek-t))
 	   (let loop ([parsed-expr #f]
-		      [parsed-dot #f])
+		      [parsed-dot #f]
+		      [parsed-expr-after-dot #f])
 	     (let* ([peek-t (peek p)]
 		    [peek-sk (car peek-t)])
 	       (cond
 		 [(or (eq? 'close-delim peek-sk)
 		      (eq? 'eof peek-sk))
+		  (when (and parsed-dot
+			     (not parsed-expr-after-dot))
+		    (emit-error p "expected at least one expression after dot '.'"))
 		  ; Simply do nothing
 		  #f]
 		 [(eq? 'dot peek-sk)
@@ -90,9 +94,9 @@
 		  (when (not parsed-expr)
 		    (emit-error p "expected at least one expression before dot '.'"))
 		  (bump p)
-		  (loop parsed-expr #t)]
+		  (loop parsed-expr #t parsed-expr-after-dot)]
 		 [else (parse-datum p)
-		       (loop #t parsed-dot)])))
+		       (loop #t parsed-dot parsed-dot)])))
 	   (expect-close-delimiter p (cond
 				       [(string=? "(" (cdr peek-t)) ")"]
 				       [(string=? "[" (cdr peek-t)) "]"]))

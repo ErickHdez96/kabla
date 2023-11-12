@@ -16,6 +16,7 @@
 	  pt-string?
 	  pt-identifier?
 	  pt-list?
+	  pt-dot?
 	  pt-vector?
 	  pt-bytevector?
 	  pt-abbreviation?)
@@ -106,16 +107,38 @@
       (and (eq? 'identifier (conifer-syntax-kind node))
 	   (string->symbol (conifer-token-text node)))))
 
-  ;; Returns the s-expressions of `node` if it is a list, `#f` otherwise.
+  ;; Returns `#f` if `node` is not a list. Otherwise returns a pair, whose car
+  ;; is a list of all the s-exps before the first `.` and whose car is a list
+  ;; of all the s-exps after the first `.`.
   (define pt-list?
     (lambda (node)
       (and (eq? 'list
 		(conifer-syntax-kind node))
-	   (filter
-	     (lambda (x) x)
-	     (map
-	       pt-sexp?
-	       (conifer-red-children node))))))
+	   (let collect-before ([elems (conifer-red-children node)]
+				[acc '()])
+	     (cond
+	       [(null? elems)
+		(cons (reverse acc) '())]
+	       [(pt-dot? (car elems))
+		(cons (reverse acc)
+		      (filter
+			(lambda (x) x)
+			(map
+			  pt-sexp?
+			  (cdr elems))))]
+	       [(pt-sexp? (car elems))
+		=> (lambda (sexp)
+		     (collect-before (cdr elems)
+				     (cons sexp acc)))]
+	       [else (collect-before (cdr elems)
+				     acc)])))))
+
+  ;; Returns `node` as-is if it is a `.`, `#f` otherwise.
+  (define pt-dot?
+    (lambda (node)
+      (and (eq? 'dot
+		(conifer-syntax-kind node))
+	   node)))
 
   ;; Returns `node` as-is if it is a vector, `#f` otherwise.
   (define pt-vector?

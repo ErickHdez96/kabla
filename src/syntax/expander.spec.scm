@@ -176,41 +176,47 @@
   "expander identifiers"
   (check
     "a"
-    '((0 . 1) . a))
+    (make-ast-identifier
+      '(0 . 1)
+      'a))
 
   (check
     "set!"
-    '((0 . 4) . set!))
+    (make-ast-identifier
+      '(0 . 4)
+      'set!))
 
   (check
     "hello-world"
-    '((0 . 11) . hello-world)))
+    (make-ast-identifier
+      '(0 . 11)
+      'hello-world)))
 
 (test-group
   "expander procedure calls"
   (check
     "(f)"
-    (make-ast-proc-call
-      (cons 0 3)
-      (make-ast-expr
-	(cons 1 1)
-	'f)
-	'()))
+    (make-ast-list
+      '(0 . 3)
+      (list
+	(make-ast-identifier
+	  '(1 . 1)
+	  'f))))
 
   (check
     "(char=? #\\a #\\a)"
-    (make-ast-proc-call
-      (cons 0 16)
-      (make-ast-expr
-	(cons 1 6)
-	'char=?)
-	(list
-	  (make-ast-expr
-	    (cons 8 3)
-	    #\a)
-	  (make-ast-expr
-	    (cons 12 3)
-	    #\a)))))
+    (make-ast-list
+      '(0 . 16)
+      (list
+	(make-ast-identifier
+	  '(1 . 6)
+	  'char=?)
+	(make-ast-expr
+	  '(8 . 3)
+	  #\a)
+	(make-ast-expr
+	  '(12 . 3)
+	  #\a)))))
 
 (test-group
   "expander multiple atoms"
@@ -244,18 +250,31 @@
 
   (check
     "()"
-    '()
-    '(((0 . 2) "empty lists aren't allowed" (#f . "try '()"))))
+    (make-ast-expr
+      '(0 . 2)
+      '())
+    '(((0 . 2) "empty lists not allowed" (#f . "try '()"))))
+
+  (check
+    "(a . ())"
+    (make-ast-list
+      '(0 . 8)
+      (list
+	(make-ast-identifier
+	  '(1 . 1)
+	  'a)))
+    '(((3 . 1) "dot '.' not allowed in this context")
+      ((5 . 2) "empty lists not allowed" (#f . "try '()"))))
 
   (check
     "(id ())"
-    (make-ast-proc-call
-      (cons 0 7)
-      (make-ast-expr
-	(cons 1 2)
-	'id)
+    (make-ast-list
+      '(0 . 7)
       (list
+	(make-ast-identifier
+	  '(1 . 2)
+	  'id)
 	(make-ast-expr
-	  (cons 4 2)
+	  '(4 . 2)
 	  '())))
-    '(((4 . 2) "empty lists aren't allowed" (#f . "try '()")))))
+    '(((4 . 2) "empty lists not allowed" (#f . "try '()")))))

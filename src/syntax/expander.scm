@@ -46,13 +46,15 @@
 	  (only (rnrs control)
 		when)
 	  (only (rnrs lists)
-		assq)
+		assq
+		find)
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (conifer)
 		conifer-syntax-kind
 		conifer-red-parent
 		conifer-red-offset
+		conifer-red-children
 		conifer-syntax-kind
 		conifer-text-length)
 	  (only (syntax parse-tree)
@@ -65,13 +67,15 @@
 		pt-string?
 		pt-identifier?
 		pt-list?
+		pt-dot?
 		pt-vector?
 		pt-bytevector?
 		pt-abbreviation?)
 	  (only (syntax ast)
 		make-ast-root
 		make-ast-expr
-		make-ast-proc-call)
+		make-ast-list
+		make-ast-identifier)
 	  (only (env)
 		make-root-env
 		make-child-env
@@ -90,6 +94,7 @@
   (define-record-type
     state
     (fields
+      (mutable items)
       ;; Deferred data that still need to be expanded.
       (mutable deferred)
       ;; Keyword and value bindings encountered so far.
@@ -119,103 +124,77 @@
 	      [intrinsic-env (fmap cdr (assq 'intrinsic-env extra-args))])
 	  (make-expander
 	    (make-state
+	      ; items
 	      '()
+	      ; deferred
+	      '()
+	      ; bindings
 	      (if intrinsic-env
 		(make-child-env
 		  intrinsic-env)
 		(make-root-env)))
+	    ; saved-states
 	    '()
+	    ; importer
 	    (or importer
 		(lambda _ (err "no importer was provided")))
+	    ; errors
 	    '())))
 
-      ; expand all top-level data. Libraries are collected and all other
-      ; data are deferred.
-      (define libraries (let loop ([pt-children (pt-root-sexps pt)]
-				   [acc '()])
-			  (cond
-			    [(null? pt-children)
-			     (reverse acc)]
-			    [(pt-sexp? (car pt-children))
-			     (cond
-			       [(expand-top-level-datum expander
-							(car pt-children))
-				; only libraries are really returned from expand-top-level-datum,
-				; all other data is deferred.
-				=> (lambda (item) (loop (cdr pt-children)
-							(cons item acc)))]
-			       [else (loop (cdr pt-children)
-					   acc)])]
-			    [else (error 'expand-parse-tree
-					 "shouldn't have arrived here")])))
-      (define items (expand-deferred-items expander))
+      (for-each
+	(lambda (d) (expand-datum expander d 'top-level))
+	(pt-root-sexps pt))
+      (expand-deferred-items expander)
 
       (cons
-	(make-ast-root items)
-	(expander-errors expander))))
+	(make-ast-root (take-items! expander))
+	(reverse (expander-errors expander)))))
 
-  ;; Expands `datum` in a <top-level> context.
-  (define expand-top-level-datum
-    (lambda (e datum)
+  (define expand-datum
+    (lambda (e datum ctx)
       (cond
-	; All expressions in the top-level are deferred until all data has
-	; been seen.
-	[(pt-atom? datum) => (lambda (atom) (defer-datum e 'atom atom))]
-	[(pt-list? datum) => (lambda (data) (expand-top-level-list e datum data))]
-	[else (error 'expand-top-level-datum
-		     "unknown datum kind: ~a"
-		     (conifer-syntax-kind datum))])))
-
-  (define expand-top-level-list
-    (lambda (e parent data)
-      (cond
-	[(null? data)
-	 (emit-error-with-hint
-	   e
-	   (parse-tree->span parent)
-	   "empty lists aren't allowed"
-	   (make-hint "try '()"))]
-	[(fmap
-	   (lambda (id) (lookup e id))
-	   (pt-identifier? (car data)))
-	 => (lambda (binding)
-	      (error 'expand-list "unknown binding ~a" binding))]
-	[else (defer-datum e 'list data)])))
+	[(pt-atom? datum) => (lambda (atom)
+			       (case ctx
+				 [(top-level) (defer-datum e 'datum datum)]
+				 [(any) (expand-atom e atom ctx)]
+				 [else (error
+					 'expand-datum
+					 "unexpected context ~a"
+					 ctx)]))]
+	[(pt-list? datum) => (lambda (lst) (expand-list e datum lst ctx))]
+	[else (error
+		'expand-datum
+		"unexpected datum ~a: ~a"
+		(conifer-syntax-kind datum)
+		datum)])))
 
   (define expand-deferred-items
     (lambda (e)
-      (let loop ([deferred-items (reverse (take-current-deferred! e))]
-		 [acc '()])
-	(if (null? deferred-items)
-	  (reverse acc)
-	  (cond
-	    [(eq? 'atom (caar deferred-items))
-	     (loop (cdr deferred-items)
-		   (cons (expand-deferred-atom e
-				      (cdar deferred-items))
-			 acc))]
-	    [(eq? 'list (caar deferred-items))
-	     (loop (cdr deferred-items)
-		   (cons (expand-deferred-list e
-					       #f
-					       (cdar deferred-items))
-			 acc))]
-	    [else (error 'expand-deferred-items
-			 "unknown datum to defer ~a"
-			 (caar deferred-items))])))))
+      (for-each
+	(lambda (d)
+	  (case (car d)
+	    [(datum) (and-then
+		       (expand-datum e (cdr d) 'any)
+		       [-> i (push-item! e i)])]
+	    [else (error
+		    'expand-deferred-items
+		    "unknown deferred item ~a: ~a"
+		    (car d)
+		    d)]))
+	(take-current-deferred! e))))
 
   (define expand-deferred-sexp
     (lambda (e sexp)
       (cond
 	[(pt-atom? sexp) => (lambda (atom) (expand-deferred-atom e atom))]
-	[(pt-list? sexp) => (lambda (data) (expand-deferred-list e sexp data))]
+	;[(pt-list? sexp) => (lambda (data) (expand-deferred-list e sexp data))]
 	[else (error 'expand-sexp
 		     "unknown sexp kind: ~a"
 		     (conifer-syntax-kind sexp))])))
 
   ;; Expands the inner child of an atom red-tree.
-  (define expand-deferred-atom
-    (lambda (e atom)
+  (define expand-atom
+    (lambda (e atom ctx)
       (cond
 	[(pt-boolean? atom)
 	 (make-ast-expr (make-span (conifer-red-offset atom)
@@ -230,53 +209,73 @@
 						  (conifer-text-length atom))
 				       s))]
 	[(pt-identifier? atom)
-	 => (lambda (v) (make-ast-expr (make-span (conifer-red-offset atom)
+	 => (lambda (v) (make-ast-identifier (make-span (conifer-red-offset atom)
 						  (conifer-text-length atom))
 				       v))]
 	[else (error 'expand-atom
 		     "unknown atom kind: ~a"
 		     (conifer-syntax-kind atom))])))
 
-  (define expand-deferred-list
-    (lambda (e parent data)
-      (cond
-	[(null? data)
-	 (when (not parent)
-	   (error 'expand-deferred-list
-		  "shouldn't defer an empty list"))
-	 (emit-error-with-hint
-	   e
-	   (parse-tree->span parent)
-	   "empty lists aren't allowed"
-	   (make-hint "try '()"))
-	 (make-ast-expr
-	   (parse-tree->span parent)
-	   '())]
-	; if the first atom of the list is a keyword, expand it.
-	[(and-then
-	   (car data)
-	   pt-atom?
-	   pt-identifier?
-	   [-> (id) (lookup e id)])
-	 => (lambda (binding)
-	      (error 'expand-deferred-list "unknown binding ~a" binding))]
-	[else (let ([parent (conifer-red-parent (car data))])
-		(make-ast-proc-call
-		  (cons (conifer-red-offset parent)
-			(conifer-text-length parent))
-		  (expand-deferred-sexp e (car data))
-		  (map
-		    (lambda (d) (expand-deferred-sexp e d))
-		    (cdr data))))])))
+  (define expand-list
+    (lambda (e parent lst ctx)
+      (let ([before-dot (car lst)]
+	    [after-dot (cdr lst)]
+	    [span (parse-tree->span parent)])
+	(cond
+	  [(null? before-dot)
+	   (case ctx
+	     [(any)
+	      ; only emit the error if the list _is_ empty, errors
+	      ; for invalid characters, extra dots or the like
+	      ; are generated elsewhere.
+	      (when (length (conifer-red-children parent))
+		(emit-error-with-hint
+		  e
+		  span
+		  "empty lists not allowed"
+		  (make-hint "try '()")))
+
+	      ; Expand data after the `.` to generate error messages
+	      (for-each
+		(lambda (ad-datum) (expand-datum e ad-datum 'any))
+		after-dot)
+	      (make-ast-expr
+		span
+		'())]
+	     [else (defer-datum e 'datum parent)])]
+
+	  [else (case ctx
+		  [(top-level) (defer-datum e 'datum parent)]
+		  [(any)
+		   (let ([elems (map (lambda (d) (expand-datum e d 'any))
+				     before-dot)])
+		     (when (not (null? after-dot))
+		       (emit-error
+			 e
+			 (parse-tree->span
+			   (find
+			     pt-dot?
+			     (conifer-red-children parent)))
+			 "dot '.' not allowed in this context")
+		       (for-each
+			 (lambda (ad-datum) (expand-datum e ad-datum 'any))
+			 after-dot))
+		     (make-ast-list
+		       span
+		       elems))]
+		  [else (error 'expand-list
+			       "can't expand list ~a"
+			       parent)])]))))
 
   ;; Pushes `expr` into the deferred list.
   (define defer-datum
-    (lambda (e kind expr)
+    (lambda (e kind datum)
       (let ([state (expander-state e)])
 	(state-deferred-set!
 	  state
-	  (cons (cons kind expr)
-		(state-deferred state))))))
+	  (cons (cons kind datum)
+		(state-deferred state)))
+	#f)))
 
   ;; Returns the current active environment.
   (define current-env
@@ -292,6 +291,25 @@
 	  state
 	  '())
 	d)))
+
+  ;; Removes and returns the current items
+  (define take-items!
+    (lambda (e)
+      (let* ([state (expander-state e)]
+	     [i (state-items state)])
+	(state-items-set!
+	  state
+	  '())
+	i)))
+
+  ;; Pushes an expanded item to the expander
+  (define push-item!
+    (lambda (e item)
+      (let ([state (expander-state e)])
+	(state-items-set!
+	  state
+	  (cons item
+		(state-items state))))))
 
   ;; Saves the current state and creates a new one for entering a lambda.
   (define enter-scope

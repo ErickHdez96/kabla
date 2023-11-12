@@ -79,10 +79,10 @@
   (define-syntax and-then
     (syntax-rules (->)
       [(_ cond
-	  (-> x body bodys ...))
+	  (-> v body bodys ...))
        (let ([t cond])
 	 (if (is-valid? t)
-	   ((lambda x body bodys ...)
+	   ((lambda (v) body bodys ...)
 	    t)
 	   t))]
       [(_ cond
@@ -98,8 +98,8 @@
 	 (and-then cond fn)
 	 rest ...)]
       [(_ cond
-	  (x body bodys ...)
+	  (-> v body bodys ...)
 	  rest ...)
        (and-then
-	 (and-then cond (x body bodys ...))
+	 (and-then cond (-> v body bodys ...))
 	 rest ...)])))
