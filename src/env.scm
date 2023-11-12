@@ -2,16 +2,19 @@
   (env)
   (export make-root-env
 	  make-child-env
-	  env-lookup)
+	  env-lookup
+	  env-insert!)
   (import (rnrs base)
 	  (only (rnrs control)
 		when)
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (rnrs hashtables)
-		make-hashtable
+		make-eq-hashtable
 		hashtable-ref
-		equal-hash))
+		hashtable-set!
+		equal-hash)
+	  (common))
 
   (define-record-type
     env
@@ -22,7 +25,7 @@
   ;; Creates a new root environment, with no parent.
   (define make-root-env
     (lambda ()
-      (make-env #f (make-hashtable equal-hash string=?))))
+      (make-env #f (make-eq-hashtable))))
 
   ;; Creates a new environment with `p` as its enclosing environment.
   (define make-child-env
@@ -32,16 +35,22 @@
 	  'make-child-env
 	  "parent must be an environment: ~a"
 	  p))
-      (make-env p (make-hashtable equal-hash string=?))))
+      (make-env p (make-eq-hashtable))))
 
+  ;; Looks up `k` in the environment `e`. If it is not present in `e`, `k` is
+  ;; looked up recursively in its parents.
   (define env-lookup
     (lambda (e k)
-      (cond
-	[(hashtable-ref (env-bindings e)
-			k
-			#f)
-	 => (lambda (res) res)]
-	[(env-parent e)
-	 (env-lookup (env-parent e)
-		     k)]
-	[else #f]))))
+      (or (hashtable-ref (env-bindings e)
+			 k
+			 #f)
+	  (and (env-parent e)
+	       (env-lookup (env-parent e)
+			   k)))))
+
+  ;; Inserts a mapping from `k` to `v` in the environment `e`.
+  (define env-insert!
+    (lambda (e k v)
+      (hashtable-set! (env-bindings e)
+		      k
+		      v))))

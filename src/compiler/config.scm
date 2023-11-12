@@ -44,29 +44,33 @@
 	  (assert (or (null? assl)
 		      (pair? (car assl))))
 
-	  (let ([search-path (or (fmap (lambda (sp)
-					 (when (not (list? (cdr sp)))
-					   (assertion-violation
-					     'assoc-list->compiler-config
-					     "search-path: must be a list of strings"))
-					 (when (and (not (null? (cdr sp)))
-						    (not (for-all string? (cdr sp))))
-					   (assertion-violation
-					     'assoc-list->compiler-config
-					     "search-path: must consist exclusively of strings ~A"
-					     sp))
-					 (cdr sp))
-				       (assq 'search-path assl))
+	  (let ([search-path (or (and-then
+				   (assq 'search-path assl)
+				   cdr
+				   [-> sp
+				       (when (not (list? sp))
+					 (assertion-violation
+					   'assoc-list->compiler-config
+					   "search-path: must be a list of strings ~a"
+					   sp))
+				       (when (and (not (null? sp))
+						  (not (for-all string? sp)))
+					 (assertion-violation
+					   'assoc-list->compiler-config
+					   "search-path: must consist exclusively of strings ~a"
+					   sp))
+				       sp])
 				 (assertion-violation
 				   'assoc-list->compiler-config
 				   "search-path: Missing required field"))]
-		[base-dir (fmap (lambda (bd)
-				  (when (not (string? (cdr bd)))
-				    (assertion-violation
-				      'assoc-list->compiler-config
-				      "base-dir: must be a string"))
-				  (cdr bd))
-				(assq 'base-dir assl))])
+		[base-dir (and-then
+			    (assq 'base-dir assl)
+			    [-> bd
+				(when (not (string? (cdr bd)))
+				  (assertion-violation
+				    'assoc-list->compiler-config
+				    "base-dir: must be a string"))
+				(cdr bd)])])
 	    (make-compiler-config
 	      ; search-path
 	      (if base-dir

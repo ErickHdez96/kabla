@@ -19,14 +19,19 @@
 	  pt-dot?
 	  pt-vector?
 	  pt-bytevector?
-	  pt-abbreviation?)
+	  pt-abbreviation?
+	  pt-open-delim?
+	  pt-close-delim?
+	  pt-span)
   (import (rnrs base)
 	  (only (rnrs lists)
 		filter)
 	  (only (conifer)
 		conifer-red-tree?
 		conifer-syntax-kind
+		conifer-red-offset
 		conifer-red-children
+		conifer-text-length
 		conifer-token-text)
 	  (only (syntax parser)
 		parse-char
@@ -159,4 +164,24 @@
     (lambda (node)
       (and (eq? 'abbreviation
 		(conifer-syntax-kind node))
-	   node))))
+	   node)))
+
+  ;; Returns `node` as-is if it is a open delimiter, `#f` otherwise.
+  (define pt-open-delim?
+    (lambda (node)
+      (and (eq? 'open-delim
+		(conifer-syntax-kind node))
+	   node)))
+
+  ;; Returns `node` as-is if it is a close delimiter, `#f` otherwise.
+  (define pt-close-delim?
+    (lambda (node)
+      (and (eq? 'close-delim
+		(conifer-syntax-kind node))
+	   node)))
+
+  ;; Returns the span of `node`. (<offset> . <length>)
+  (define pt-span
+    (lambda (node)
+      (cons (conifer-red-offset node)
+	    (conifer-text-length node)))))

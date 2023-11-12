@@ -41,136 +41,161 @@
 	(cdr result)))))
 
 (test-group
-  "expander simple atoms"
-  ; booleans
-  (begin
-    (check
-      "#t"
-      '((0 . 2) . #t))
+  "expander boolean"
+  (check
+    "#t"
+    (make-ast-boolean '(0 . 2) #t))
 
-    (check
-      "#T"
-      '((0 . 2) . #t))
+  (check
+    "#T"
+    (make-ast-boolean '(0 . 2) #t))
 
-    (check
-      "#f"
-      '((0 . 2) . #f))
+  (check
+    "#f"
+    (make-ast-boolean '(0 . 2) #f))
 
-    (check
-      "#F"
-      '((0 . 2) . #f)))
+  (check
+    "#F"
+    (make-ast-boolean '(0 . 2) #f)))
 
-  ; chars
-  (begin
-    (check
-      "#\\a"
-      '((0 . 3) . #\a))
+(test-group
+  "expander char"
+  (check
+    "#\\a"
+    (make-ast-char '(0 . 3) #\a))
 
-    (check
-      "#\\λ"
-      '((0 . 3) . #\λ))
+  (check
+    "#\\λ"
+    (make-ast-char '(0 . 3) #\λ))
 
-    (check
-      "#\\nul"
-      '((0 . 5) . #\nul))
+  (check
+    "#\\nul"
+    (make-ast-char '(0 . 5) #\nul))
 
-    (check
-      "#\\alarm"
-      '((0 . 7) . #\alarm))
+  (check
+    "#\\alarm"
+    (make-ast-char '(0 . 7) #\alarm))
 
-    (check
-      "#\\backspace"
-      '((0 . 11) . #\backspace))
+  (check
+    "#\\backspace"
+    (make-ast-char '(0 . 11) #\backspace))
 
-    (check
-      "#\\tab"
-      '((0 . 5) . #\tab))
+  (check
+    "#\\tab"
+    (make-ast-char '(0 . 5) #\tab))
 
-    (check
-      "#\\linefeed"
-      '((0 . 10) . #\linefeed))
+  (check
+    "#\\linefeed"
+    (make-ast-char '(0 . 10) #\linefeed))
 
-    (check
-      "#\\newline"
-      '((0 . 9) . #\newline))
+  (check
+    "#\\newline"
+    (make-ast-char '(0 . 9) #\newline))
 
-    (check
-      "#\\vtab"
-      '((0 . 6) . #\vtab))
+  (check
+    "#\\vtab"
+    (make-ast-char '(0 . 6) #\vtab))
 
-    (check
-      "#\\page"
-      '((0 . 6) . #\page))
+  (check
+    "#\\page"
+    (make-ast-char '(0 . 6) #\page))
 
-    (check
-      "#\\return"
-      '((0 . 8) . #\return))
+  (check
+    "#\\return"
+    (make-ast-char '(0 . 8) #\return))
 
-    (check
-      "#\\esc"
-      '((0 . 5) . #\esc))
+  (check
+    "#\\esc"
+    (make-ast-char '(0 . 5) #\esc))
 
-    (check
-      "#\\space"
-      '((0 . 7) . #\space))
+  (check
+    "#\\space"
+    (make-ast-char '(0 . 7) #\space))
 
-    (check
-      "#\\delete"
-      '((0 . 8) . #\delete))
+  (check
+    "#\\delete"
+    (make-ast-char '(0 . 8) #\delete))
 
-    (check
-      "#\\x3bb"
-      '((0 . 6) . #\λ))
+  (check
+    "#\\x3bb"
+    (make-ast-char '(0 . 6) #\λ))
 
-    (check
-      "#\\x3c0"
-      '((0 . 6) . #\π))
+  (check
+    "#\\x3c0"
+    (make-ast-char '(0 . 6) #\π))
 
-    (check
-      "#\\x2654"
-      '((0 . 7) . #\♔)))
+  (check
+    "#\\x2654"
+    (make-ast-char '(0 . 7) #\♔)))
 
-  ; strings
-  (begin
-    (check
-      (list->string '(#\" #\a #\"))
-      '((0 . 3) . "a"))
+(test-group
+  "expander char error"
+  (check
+    "#\\Space"
+    (make-ast-char '(0 . 7) #\xFFFD)
+    '(((0 . 7) "invalid character name: Space")))
 
-    (check
-      (list->string '(#\" #\\ #\a #\"))
-      '((0 . 4) . "\a"))
+  (check
+    "#\\xDAAA"
+    (make-ast-char '(0 . 7) #\xFFFD)
+    '(((0 . 7)
+       "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"))))
 
-    (check
-      (list->string '(#\" #\\ #\b #\"))
-      '((0 . 4) . "\b"))
+(test-group
+  "expander string"
+  (check
+    (list->string '(#\" #\a #\"))
+    (make-ast-string '(0 . 3) "a"))
 
-    (check
-      (list->string '(#\" #\\ #\t #\"))
-      '((0 . 4) . "\t"))
+  (check
+    (list->string '(#\" #\\ #\a #\"))
+    (make-ast-string '(0 . 4) "\a"))
 
-    (check
-      (list->string '(#\" #\\ #\n #\"))
-      '((0 . 4) . "\n"))
+  (check
+    (list->string '(#\" #\\ #\b #\"))
+    (make-ast-string '(0 . 4) "\b"))
 
-    (check
-      (list->string '(#\" #\\ #\v #\"))
-      '((0 . 4) . "\v"))
+  (check
+    (list->string '(#\" #\\ #\t #\"))
+    (make-ast-string '(0 . 4) "\t"))
 
-    (check
-      (list->string '(#\" #\\ #\f #\"))
-      '((0 . 4) . "\f"))
+  (check
+    (list->string '(#\" #\\ #\n #\"))
+    (make-ast-string '(0 . 4) "\n"))
 
-    (check
-      (list->string '(#\" #\\ #\r #\"))
-      '((0 . 4) . "\r"))
+  (check
+    (list->string '(#\" #\\ #\v #\"))
+    (make-ast-string '(0 . 4) "\v"))
 
-    (check
-      (list->string '(#\" #\\ #\" #\"))
-      '((0 . 4) . "\""))
+  (check
+    (list->string '(#\" #\\ #\f #\"))
+    (make-ast-string '(0 . 4) "\f"))
 
-    (check
-      (list->string '(#\" #\\ #\\ #\"))
-      '((0 . 4) . "\\"))))
+  (check
+    (list->string '(#\" #\\ #\r #\"))
+    (make-ast-string '(0 . 4) "\r"))
+
+  (check
+    (list->string '(#\" #\\ #\" #\"))
+    (make-ast-string '(0 . 4) "\""))
+
+  (check
+    (list->string '(#\" #\\ #\\ #\"))
+    (make-ast-string '(0 . 4) "\\")))
+
+(test-group
+  "expander string error"
+
+  (check
+    (list->string '(#\"))
+    (make-ast-string '(0 . 1) "")
+    '(((0 . 1) "unterminated string")))
+
+  (check
+    (list->string '(#\" #\\ #\q))
+    (make-ast-string '(0 . 3) "\xFFFD;")
+    '(((1 . 2) "invalid escape sequence \\q")
+      ((0 . 3) "unterminated string"))))
 
 (test-group
   "expander identifiers"
@@ -211,48 +236,19 @@
 	(make-ast-identifier
 	  '(1 . 6)
 	  'char=?)
-	(make-ast-expr
+	(make-ast-char
 	  '(8 . 3)
 	  #\a)
-	(make-ast-expr
+	(make-ast-char
 	  '(12 . 3)
 	  #\a)))))
 
 (test-group
-  "expander multiple atoms"
-  (check
-    "#t #f"
-    '(((0 . 2) . #t)
-      ((3 . 2) . #f))))
-
-(test-group
   "expander simple error recovery"
-  (check
-    "#\\Space"
-    '((0 . 7) . #\xFFFD)
-    '(((0 . 7) "invalid character name: Space")))
-
-  (check
-    "#\\xDAAA"
-    '((0 . 7) . #\xFFFD)
-    '(((0 . 7) "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]")))
-
-  (check
-    (list->string '(#\"))
-    '((0 . 1) . "")
-    '(((0 . 1) "unterminated string")))
-
-  (check
-    (list->string '(#\" #\\ #\q))
-    '((0 . 3) . "\xFFFD;")
-    '(((1 . 2) "invalid escape sequence \\q")
-      ((0 . 3) "unterminated string")))
 
   (check
     "()"
-    (make-ast-expr
-      '(0 . 2)
-      '())
+    (make-ast-null '(0 . 2))
     '(((0 . 2) "empty lists not allowed" (#f . "try '()"))))
 
   (check
@@ -263,8 +259,7 @@
 	(make-ast-identifier
 	  '(1 . 1)
 	  'a)))
-    '(((3 . 1) "dot '.' not allowed in this context")
-      ((5 . 2) "empty lists not allowed" (#f . "try '()"))))
+    '(((3 . 1) "dot '.' not allowed in this context")))
 
   (check
     "(id ())"
@@ -274,7 +269,106 @@
 	(make-ast-identifier
 	  '(1 . 2)
 	  'id)
-	(make-ast-expr
-	  '(4 . 2)
-	  '())))
+	(make-ast-null '(4 . 2))))
     '(((4 . 2) "empty lists not allowed" (#f . "try '()")))))
+
+(test-group
+  "expander if"
+  (check
+    "(if #t #\\a #f)"
+    (make-ast-if
+      '(0 . 14)
+      (make-ast-boolean
+	'(4 . 2)
+	#t)
+      (make-ast-char
+	'(7 . 3)
+	#\a)
+      (make-ast-boolean
+	'(11 . 2)
+	#f)))
+
+  (check
+    "(if #f a)"
+    (make-ast-if
+      '(0 . 9)
+      (make-ast-boolean
+	'(4 . 2)
+	#f)
+      (make-ast-identifier
+	'(7 . 1)
+	'a)
+      (make-ast-unspecified
+	'(0 . 9)))))
+
+(test-group
+  "expander if error"
+  (check
+    "(if)"
+    (make-ast-if
+      '(0 . 4)
+      (make-ast-unspecified
+	'(0 . 4))
+      (make-ast-unspecified
+	'(0 . 4))
+      (make-ast-unspecified
+	'(0 . 4)))
+    '(((3 . 1) "expected a condition")
+      ((3 . 1) "expected a true branch")))
+
+  (check
+    "(if #t)"
+    (make-ast-if
+      '(0 . 7)
+      (make-ast-boolean
+	'(4 . 2) #t)
+      (make-ast-unspecified
+	'(0 . 7))
+      (make-ast-unspecified
+	'(0 . 7)))
+    '(((6 . 1) "expected a true branch")))
+
+  (check
+    "(if #t . #t)"
+    (make-ast-if
+      '(0 . 12)
+      (make-ast-boolean
+	'(4 . 2) #t)
+      (make-ast-unspecified
+	'(0 . 12))
+      (make-ast-unspecified
+	'(0 . 12)))
+    '(((7 . 1) "expected a true branch")
+      ((7 . 1) "dot '.' not allowed in this context")))
+
+  (check
+    "(if #t #t #t #t)"
+    (make-ast-if
+      '(0 . 16)
+      (make-ast-boolean
+	'(4 . 2) #t)
+      (make-ast-boolean
+	'(7 . 2) #t)
+      (make-ast-boolean
+	'(10 . 2) #t))
+    '(((13 . 2) "expected ), found #t")))
+
+  (check
+    "[if #t #t #t #f]"
+    (make-ast-if
+      '(0 . 16)
+      (make-ast-boolean
+	'(4 . 2) #t)
+      (make-ast-boolean
+	'(7 . 2) #t)
+      (make-ast-boolean
+	'(10 . 2) #t))
+    '(((13 . 2) "expected ], found #f"))))
+
+(test-group
+  "expander multiple atoms"
+  (check
+    "#t #f"
+    (list
+      (make-ast-boolean '(0 . 2) #t)
+      (make-ast-boolean '(3 . 2) #f))))

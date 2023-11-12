@@ -23,16 +23,11 @@
 	bctx
 	'module->parse-tree
 	(lambda (qctx module)
-	  (let* ([filename (fetch qctx 'module->filename module)]
-		 [id-str (fmap (lambda (f)
-				 (fetch qctx 'filename->string f))
-			       filename)]
-		 [tokens (fmap (lambda (id-str) (scan-string (cdr id-str))) id-str)]
-		 [p-result (fmap parse-tokens tokens)])
-	    (fmap
-	      (lambda (result)
-		(make-parse-result
-		  (car id-str)
-		  (conifer-make-view (car result))
-		  (cdr result)))
-	      p-result)))))))
+	  (and-then
+	    (fetch qctx 'module->filename module)
+	    [-> fname (fetch qctx 'filename->string fname)]
+	    [-> id-str (let ([p-result (parse-tokens (scan-string (cdr id-str)))])
+			 (make-parse-result
+			   (car id-str)
+			   (conifer-make-view (car p-result))
+			   (cdr p-result)))]))))))
