@@ -8,6 +8,8 @@
 		make-ast-error
 		make-ast-boolean
 		make-ast-char
+		make-ast-null
+		make-ast-string
 		make-ast-symbol)
 	  (only (syntax parse-tree)
 		pt-span
@@ -16,13 +18,16 @@
 		pt-boolean-value
 		pt-char?
 		pt-identifier?
+		pt-list?
+		pt-string?
 		pt-syntax-kind)
 	  (only (syntax expander)
 		expand-emit-error)
 	  (only (syntax expander base common)
 		close-delim-or-dot-span
 		expected-closing-delim
-		maybe-unexpected-dot))
+		maybe-unexpected-dot)
+	  (common))
 
   (define keyword-quote
     (lambda (e node elems dot)
@@ -49,27 +54,42 @@
   (define quote-datum
     (lambda (e node elem)
       (cond
-	[(pt-atom? elem) => (lambda (atom)
-			      (cond
-				[(pt-identifier? atom) => (lambda (ident)
-							    (make-ast-symbol
-							      (pt-span node)
-							      node
-							      ident))]
-				[(pt-boolean? atom)
-				 (make-ast-boolean
-				   (pt-span node)
-				   node
-				   (pt-boolean-value atom))]
-				[(pt-char? atom) => (lambda (char)
-						      (make-ast-char
-							(pt-span node)
-							node
-							char))]
-				[else (error 'quote-datum
-					     "unknown atom ~a - ~a"
-					     (pt-syntax-kind elem)
-					     elem)]))]
+	[(pt-atom? elem)
+	 => (lambda (atom)
+	      (cond
+		[(pt-identifier? atom) => (lambda (ident)
+					    (make-ast-symbol
+					      (pt-span node)
+					      node
+					      ident))]
+		[(pt-boolean? atom)
+		 (make-ast-boolean
+		   (pt-span node)
+		   node
+		   (pt-boolean-value atom))]
+		[(pt-char? atom) => (lambda (char)
+				      (make-ast-char
+					(pt-span node)
+					node
+					char))]
+		[(pt-string? atom) => (lambda (str)
+					(make-ast-string
+					  (pt-span node)
+					  node
+					  str))]
+		[else (error 'quote-datum
+			     "unknown atom ~a - ~a"
+			     (pt-syntax-kind elem)
+			     elem)]))]
+	[(pt-list? elem)
+	 => (lambda (elems)
+	      (cond
+		[(and (null? (car elems))
+		      (null? (cdr elems)))
+		 (make-ast-null (pt-span node) node)]
+		[else (error 'quote-datum
+			     "cannot quote lists yet ~a"
+			     elem)]))]
 	[else (error 'quote-datum
 		     "unknown datum kind ~a - ~a"
 		     (pt-syntax-kind elem)

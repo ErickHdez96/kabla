@@ -1,6 +1,5 @@
 (import (rnrs base)
 	(srfi srfi-64)
-	(srfi srfi-43)
 	(conifer)
 	(syntax shortcuts)
 	(syntax ast))
@@ -31,7 +30,7 @@
        (test-equal expected actual)]
       [(vector? expected)
        (vector-for-each
-	 (lambda (_ e a) (check-node e a))
+	 check-node
 	 expected
 	 actual)]
       [(pair? expected)
@@ -85,9 +84,6 @@
 	   1
 	   (length (ast-root-items (car result))))
 	 (check-node
-	   expected-ast
-	   (car (ast-root-items (car result))))
-	 #;(test-equal
 	   expected-ast
 	   (car (ast-root-items (car result))))]
 	[else
@@ -719,7 +715,15 @@
     (make-ast-char
       '(0 . 11)
       gn
-      #\a)))
+      #\a))
+
+  (check
+    "(quote ())"
+    (make-ast-null '(0 . 10) gn))
+
+  (check
+    "(quote \"hi\")"
+    (make-ast-string '(0 . 12) gn "hi")))
 
 (test-group
   "expander multiple atoms"

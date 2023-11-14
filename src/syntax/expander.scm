@@ -57,7 +57,6 @@
 		define-record-type)
 	  (only (conifer)
 		conifer-syntax-kind
-		conifer-red-tree-green
 		conifer-red-parent
 		conifer-red-offset
 		conifer-red-children
@@ -161,7 +160,7 @@
       (expand-deferred-items expander)
 
       (cons
-	(make-ast-root (take-items! expander) (conifer-red-tree-green pt))
+	(make-ast-root (take-items! expander) pt)
 	(reverse (expander-errors expander)))))
 
   (define expand-datum
@@ -217,10 +216,10 @@
     (lambda (e atom)
       (let ([span (pt-span atom)])
 	(cond
-	  [(pt-boolean? atom) (make-ast-boolean span (conifer-red-tree-green atom) (pt-boolean-value atom))]
-	  [(pt-char? atom) => (lambda (c) (make-ast-char span (conifer-red-tree-green atom) c))]
-	  [(pt-string? atom) => (lambda (s) (make-ast-string span (conifer-red-tree-green atom) s))]
-	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier span (conifer-red-tree-green atom) v))]
+	  [(pt-boolean? atom) (make-ast-boolean span atom (pt-boolean-value atom))]
+	  [(pt-char? atom) => (lambda (c) (make-ast-char span atom c))]
+	  [(pt-string? atom) => (lambda (s) (make-ast-string span atom s))]
+	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier span atom v))]
 	  [else (error 'expand-atom
 		       "unknown atom kind: ~a"
 		       (conifer-syntax-kind atom))]))))
