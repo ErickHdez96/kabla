@@ -22,7 +22,8 @@
 	  pt-abbreviation?
 	  pt-open-delim?
 	  pt-close-delim?
-	  pt-span)
+	  pt-span
+	  (rename (conifer-syntax-kind pt-syntax-kind)))
   (import (rnrs base)
 	  (only (rnrs lists)
 		filter)

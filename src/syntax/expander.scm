@@ -57,6 +57,7 @@
 		define-record-type)
 	  (only (conifer)
 		conifer-syntax-kind
+		conifer-red-tree-green
 		conifer-red-parent
 		conifer-red-offset
 		conifer-red-children
@@ -84,7 +85,8 @@
 		make-ast-string
 		make-ast-null
 		make-ast-list
-		make-ast-identifier)
+		make-ast-identifier
+		make-ast-unspecified)
 	  (only (env)
 		make-root-env
 		make-child-env
@@ -159,7 +161,7 @@
       (expand-deferred-items expander)
 
       (cons
-	(make-ast-root (take-items! expander))
+	(make-ast-root (take-items! expander) (conifer-red-tree-green pt))
 	(reverse (expander-errors expander)))))
 
   (define expand-datum
@@ -215,10 +217,10 @@
     (lambda (e atom)
       (let ([span (pt-span atom)])
 	(cond
-	  [(pt-boolean? atom) (make-ast-boolean span (pt-boolean-value atom))]
-	  [(pt-char? atom) => (lambda (c) (make-ast-char span c))]
-	  [(pt-string? atom) => (lambda (s) (make-ast-string span s))]
-	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier span v))]
+	  [(pt-boolean? atom) (make-ast-boolean span (conifer-red-tree-green atom) (pt-boolean-value atom))]
+	  [(pt-char? atom) => (lambda (c) (make-ast-char span (conifer-red-tree-green atom) c))]
+	  [(pt-string? atom) => (lambda (s) (make-ast-string span (conifer-red-tree-green atom) s))]
+	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier span (conifer-red-tree-green atom) v))]
 	  [else (error 'expand-atom
 		       "unknown atom kind: ~a"
 		       (conifer-syntax-kind atom))]))))
@@ -242,7 +244,7 @@
 		  "empty lists not allowed"
 		  (make-hint "try '()")))
 
-	      (make-ast-null span)]
+	      (make-ast-null span parent)]
 	     [else (defer-datum e 'datum parent)])]
 
 	  [else
@@ -264,7 +266,8 @@
 		  ; we still defer it for error recovery purposes
 		  (defer-define e parent before-dot)
 		  (make-ast-unspecified
-		    (pt-span parent))]
+		    (pt-span parent parent)
+		    parent)]
 		 [(keyword-expr-list? e before-dot)
 		  => (lambda (transformer)
 		       (transformer e
@@ -286,6 +289,7 @@
 			 "dot '.' not allowed in this context"))
 		     (make-ast-list
 		       span
+		       parent
 		       elems))])]
 	      [else (error 'expand-list
 			   "can't expand list ~a"

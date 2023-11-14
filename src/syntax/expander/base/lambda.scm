@@ -97,10 +97,12 @@
                   "expected at least one expression"))
               (make-ast-lambda
                 (pt-span node)
+		node
                 (car formals)
                 (cdr formals)
                 (make-ast-let
                   (pt-span node)
+		  node
                   'letrec*
                   defs
                   exprs))))])))
@@ -116,6 +118,7 @@
          => (lambda (formal)
               (cons '() (make-ast-identifier
                           (pt-span node)
+			  node
                           formal)))]
         [(pt-list? node)
          => (lambda (f-elems)
@@ -134,6 +137,7 @@
                                       => (lambda (rest)
                                            (make-ast-identifier
                                              (pt-span (cadr f-elems))
+					     (cadr f-elems)
                                              rest))]
                                      [else (expand-emit-error
                                              e
@@ -143,6 +147,7 @@
                                                (conifer-tree->string (cadr f-elems))))
                                            (make-ast-identifier
                                              (pt-span (cadr f-elems))
+					     (cadr f-elems)
                                              (string->symbol
                                                (format
                                                  "|~a|"
@@ -163,6 +168,7 @@
                         (loop (cdr before-dot)
                               (cons (make-ast-identifier
                                       (pt-span (car before-dot))
+				      (car before-dot)
                                       var)
                                     formals)))]
                   [else (expand-emit-error
@@ -180,6 +186,7 @@
                     (conifer-tree->string node)))
           (cons '() (make-ast-identifier
                       (pt-span node)
+		      node
                       (string->symbol
                         (format
                           "|~a|"

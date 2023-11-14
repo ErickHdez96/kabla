@@ -16,6 +16,8 @@
 	  ast-expr-span
 	  ast-expr-kind
 	  ast-expr-value
+	  make-ast-error
+	  ast-error?
 	  make-ast-boolean
 	  ast-boolean?
 	  make-ast-char
@@ -39,6 +41,10 @@
 	  make-ast-let
 	  ast-let?)
   (import (rnrs base)
+	  (only (conifer)
+		conifer-red-tree?
+		conifer-green-tree?
+		conifer-red-tree-green)
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (rnrs lists)
@@ -48,7 +54,19 @@
     ast-root
     (fields
       ; vector of items parsed from the file.
-      items))
+      items
+      green)
+    (protocol
+      (lambda (new)
+	(lambda (items tree)
+	  (new
+	    items
+	    (cond
+	      [(conifer-red-tree? tree) (conifer-red-tree-green tree)]
+	      [(conifer-green-tree? tree) tree]
+	      [else (assertion-violation 'ast-root
+					 "expected a red/green node, found ~a"
+					 tree)]))))))
 
   ;; Import directive `(import <import spec> ... )`
   (define-record-type
@@ -68,7 +86,21 @@
       ; The name of the variable being defined (as an ast-expr.)
       variable
       ; ast-expr used to initialize `variable`, `#f` if none.
-      expr))
+      expr
+      green)
+    (protocol
+      (lambda (new)
+	(lambda (span tree variable expr)
+	  (new
+	    span
+	    variable
+	    expr
+	    (cond
+	      [(conifer-red-tree? tree) (conifer-red-tree-green tree)]
+	      [(conifer-green-tree? tree) tree]
+	      [else (assertion-violation 'ast-root
+					 "expected a red/green node, found ~a"
+					 tree)]))))))
 
   ;; <expr> → <literal> | <list> | <vector> | <lambda> | <if> | <quote>
   ;;	    | <set!> | <pair>
@@ -83,12 +115,39 @@
       kind
       ; The value of the expresson, literals are stored as primitives
       ; (i.e. char, boolean, number, identifier (symbol), string).
-      value))
+      value
+      green)
+    (protocol
+      (lambda (new)
+	(lambda (span kind value tree)
+	  (new
+	    span
+	    kind
+	    value
+	    (cond
+	      [(conifer-red-tree? tree) (conifer-red-tree-green tree)]
+	      [(conifer-green-tree? tree) tree]
+	      [else (assertion-violation 'ast-root
+					 "expected a red/green node, found ~a"
+					 tree)]))))))
+
+  ;; Creates a new error expression. When an expression is expected, but the
+  ;; datum couldn't be correctly expanded, an error is generated to preserve
+  ;; the original tree.
+  (define make-ast-error
+    (lambda (span green)
+      (make-ast-expr span 'error #f green)))
+
+  ;; Returns `#t` if `e` is an error expr.
+  (define ast-error?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'error (ast-expr-kind e)))))
 
   ;; Returns a new boolean node.
   (define make-ast-boolean
-    (lambda (span b)
-      (make-ast-expr span 'boolean b)))
+    (lambda (span green b)
+      (make-ast-expr span 'boolean b green)))
 
   ;; Returns `#t` if `e` is a boolean expr.
   (define ast-boolean?
@@ -98,8 +157,8 @@
 
   ;; Returns a new char node.
   (define make-ast-char
-    (lambda (span c)
-      (make-ast-expr span 'char c)))
+    (lambda (span green c)
+      (make-ast-expr span 'char c green)))
 
   ;; Returns `#t` if `e` is a char expr.
   (define ast-char?
@@ -109,8 +168,8 @@
 
   ;; Returns a new string node.
   (define make-ast-string
-    (lambda (span s)
-      (make-ast-expr span 'string s)))
+    (lambda (span green s)
+      (make-ast-expr span 'string s green)))
 
   ;; Returns `#t` if `e` is a string expr.
   (define ast-string?
@@ -120,8 +179,8 @@
 
   ;; Returns a new identifier node.
   (define make-ast-identifier
-    (lambda (span id)
-      (make-ast-expr span 'identifier id)))
+    (lambda (span green id)
+      (make-ast-expr span 'identifier id green)))
 
   ;; Returns `#t` if `e` is an identifier expr.
   (define ast-identifier?
@@ -131,8 +190,8 @@
 
   ;; Returns a new symbol node.
   (define make-ast-symbol
-    (lambda (span sy)
-      (make-ast-expr span 'symbol sy)))
+    (lambda (span green sy)
+      (make-ast-expr span 'symbol sy green)))
 
   ;; Returns `#t` if `e` is a symbol expr.
   (define ast-symbol?
@@ -142,8 +201,8 @@
 
   ;; Returns a new unspecified node.
   (define make-ast-unspecified
-    (lambda (span)
-      (make-ast-expr span 'unspecified #f)))
+    (lambda (span green)
+      (make-ast-expr span 'unspecified #f green)))
 
   ;; Returns `#t` if `e` is a unspecified expr.
   (define ast-unspecified?
@@ -153,8 +212,8 @@
 
   ;; Returns a new null node.
   (define make-ast-null
-    (lambda (span)
-      (make-ast-expr span 'null #f)))
+    (lambda (span green)
+      (make-ast-expr span 'null #f green)))
 
   ;; Returns `#t` if `e` is a null expr.
   (define ast-null?
@@ -164,13 +223,14 @@
 
   ;; Returns a new list 
   (define make-ast-list
-    (lambda (span elems)
+    (lambda (span green elems)
       (make-ast-expr
 	span
 	'list
 	(if (list? elems)
 	  (list->vector elems)
-	  elems))))
+	  elems)
+	green)))
 
   ;; Returns `#t` if `e` is a list expression.
   (define ast-list?
@@ -180,7 +240,7 @@
 
   ;; Returns a new if node 
   (define make-ast-if
-    (lambda (span cond true . false)
+    (lambda (span green cond true . false)
       (make-ast-expr
 	span
 	'if
@@ -188,7 +248,8 @@
 	       true
 	       (if (null? false)
 		 #f
-		 (car false))))))
+		 (car false)))
+	green)))
 
   ;; Returns `#t` if `e` is an if expression.
   (define ast-if?
@@ -198,7 +259,7 @@
 
   ;; Returns a new `lambda` node.
   (define make-ast-lambda
-    (lambda (span vars rest body)
+    (lambda (span green vars rest body)
       (assert (list? vars))
       (for-each
 	(lambda (v)
@@ -214,7 +275,8 @@
 	'lambda
 	(cons* vars
 	       rest
-	       body))))
+	       body)
+	green)))
 
   ;; Returns `#t` if `e` is a lambda expression.
   (define ast-lambda?
@@ -224,7 +286,7 @@
 
   ;; Returns a new `lambda` node.
   (define make-ast-let
-    (lambda (span kind vars exprs)
+    (lambda (span green kind vars exprs)
       (assert (or (eq? 'let kind)
 		  (eq? 'let* kind)
 		  (eq? 'letrec kind)
@@ -246,8 +308,8 @@
 	span
 	kind
 	(cons* vars
-	       exprs
-	       ))))
+	       exprs)
+	green)))
 
   ;; Returns `#t` if `e` is a let/let*/letrec/letrec* expression.
   (define ast-let?

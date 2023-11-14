@@ -34,6 +34,8 @@
 		expand-take-items!)
 	  (only (syntax expander base lambda)
 		keyword-lambda)
+	  (only (syntax expander base quote)
+		keyword-quote)
 	  (only (syntax expander base common)
 		close-delim-or-dot-span
 		expected-closing-delim
@@ -63,7 +65,7 @@
 	 => (lambda (var)
 	      (let ([expr (or (and (>= elems-length 3)
 				   (expand-datum e (caddr elems) 'expr))
-			      (make-ast-unspecified (pt-span node)))])
+			      (make-ast-unspecified (pt-span node) node))])
 		(when (>= elems-length 4)
 		  (expand-emit-error
 		    e
@@ -74,8 +76,10 @@
 		(maybe-unexpected-dot e node dot)
 		(make-ast-define
 		  (pt-span node)
+		  node
 		  (make-ast-identifier
 		    (pt-span (cadr elems))
+		    (cadr elems)
 		    var)
 		  expr)))]
 	[(pt-list? (cadr elems))
@@ -105,8 +109,7 @@
 				    e
 				    last-span
 				    "expected a condition")
-				  (make-ast-unspecified
-				    (pt-span node))])]
+				  (make-ast-unspecified (pt-span node) node)])]
 	     [true (cond
 		     [(>= elems-length 3)
 		      (expand-datum e (caddr elems) 'expr)]
@@ -114,13 +117,11 @@
 			     e
 			     last-span
 			     "expected a true branch")
-			   (make-ast-unspecified
-			     (pt-span node))])]
+			   (make-ast-unspecified (pt-span node) node)])]
 	     [false (cond
 		      [(>= elems-length 4)
 		       (expand-datum e (cadddr elems) 'expr)]
-		      [else (make-ast-unspecified
-			      (pt-span node))])])
+		      [else (make-ast-unspecified (pt-span node) node)])])
 
 	(when (>= elems-length 5)
 	  (expand-emit-error
@@ -134,6 +135,7 @@
 
 	(make-ast-if
 	  (pt-span node)
+	  node
 	  conditional
 	  true
 	  false))))
@@ -161,4 +163,11 @@
 	(cons
 	  'keyword-expr
 	  keyword-lambda))     
+
+      (env-insert!
+	env
+	'quote
+	(cons
+	  'keyword-expr
+	  keyword-quote))
       env)))
