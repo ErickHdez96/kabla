@@ -26,14 +26,14 @@
       (when dot
 	(expand-emit-error
 	  e
-	  (pt-span (find pt-dot? (conifer-red-children node)))
+	  (pt-span (find pt-dot? (vector->list (conifer-red-children node))))
 	  "dot '.' not allowed in this context"))))
 
   ;; Returns the span of the left-most `.`, closing delimiter, or the
   ;; right-most child of `node`.
   (define close-delim-or-dot-span
     (lambda (node)
-      (let search ([elems (conifer-red-children node)])
+      (let search ([elems (vector->list (conifer-red-children node))])
 	(cond
 	  [(null? elems)
 	   (error 'rparen-or-dot
@@ -48,7 +48,7 @@
   ;; depending on its opening delimiter. For error purposes.
   (define expected-closing-delim
     (lambda (node)
-      (let ([children (conifer-red-children node)])
+      (let ([children (vector->list (conifer-red-children node))])
         (assert (not (null? children)))
 	(cond
 	  [(pt-open-delim? (car children))

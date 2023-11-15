@@ -4,6 +4,8 @@
 	  parse-char
 	  parse-string)
   (import (rnrs base)
+	  (only (rnrs lists)
+		cons*)
 	  (only (rnrs control)
 		when)
 	  (only (rnrs records syntactic)
@@ -48,8 +50,9 @@
 
 	(finish-node p)
 	(let ([t (conifer-finish-builder (parser-builder p))])
-	  (cons t
-		(reverse (parser-errors p)))))))
+	  (cons* t
+		 (reverse (parser-errors p))
+		 (parser-builder p))))))
 
   (define parse-datum
     (lambda (p)

@@ -59,7 +59,7 @@
                           (parse-tokens tokens))])
       (test-equal
         errors
-        (cdr parse-result))
+        (cadr parse-result))
       (test-equal
         (remove-indent expected)
         (conifer-tree->debug-string (car parse-result))))))

@@ -56,6 +56,7 @@
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (conifer)
+		conifer-green-node-builder
 		conifer-syntax-kind
 		conifer-red-parent
 		conifer-red-offset
@@ -98,6 +99,7 @@
     (fields
       (mutable state)
       (mutable saved-states)
+      green-node-builder
       importer
       (mutable errors)))
 
@@ -134,7 +136,9 @@
 	(let ([importer (and-then (assq 'importer extra-args)
 				  cdr)]
 	      [intrinsic-env (and-then (assq 'intrinsic-env extra-args)
-				       cdr)])
+				       cdr)]
+	      [green-node-builder (and-then (assq 'green-node-builder extra-args)
+					    cdr)])
 	  (make-expander
 	    (make-state
 	      ; items
@@ -148,6 +152,8 @@
 		(make-root-env)))
 	    ; saved-states
 	    '()
+	    (or green-node-builder
+		(conifer-green-node-builder))
 	    ; importer
 	    (or importer
 		(lambda _ (err "no importer was provided")))
@@ -236,7 +242,7 @@
 	      ; only emit the error if the list _is_ empty, errors
 	      ; for invalid characters, extra dots or the like
 	      ; are generated elsewhere.
-	      (when (length (conifer-red-children parent))
+	      (when (vector-length (conifer-red-children parent))
 		(emit-error-with-hint
 		  e
 		  span
@@ -284,7 +290,7 @@
 			 (pt-span
 			   (find
 			     pt-dot?
-			     (conifer-red-children parent)))
+			     (vector->list (conifer-red-children parent))))
 			 "dot '.' not allowed in this context"))
 		     (make-ast-list
 		       span

@@ -6,20 +6,6 @@
 
 (test-runner-current (test-runner-simple))
 
-(define-syntax chek
-  (syntax-rules ()
-    [(_ str expected-item)
-     (let ([result (expand-str str)])
-       (test-eqv
-	 1
-	 (length (ast-root-items (car result))))
-       (test-equal
-	 '()
-	 (cdr result))
-       (test-equal
-	 expected-item
-	 (car (ast-root-items (car result)))))]))
-
 (define check-expression
   (lambda (expected actual)
     (cond
@@ -97,7 +83,7 @@
 	(if (null? expected-errors)
 	  '()
 	  (car expected-errors))
-	(cdr result)))))
+	(cadr result)))))
 
 (define gn
   (conifer-make-green-token

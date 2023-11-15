@@ -30,4 +30,5 @@
 			 (make-parse-result
 			   (car id-str)
 			   (conifer-make-view (car p-result))
-			   (cdr p-result)))]))))))
+			   (cadr p-result)
+			   (cddr p-result)))]))))))

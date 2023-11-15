@@ -10,8 +10,7 @@
 		format)
 	  (only (conifer)
 		conifer-token-text
-		conifer-tree->string
-		conifer-red-children)
+		conifer-tree->string)
 	  (only (syntax ast)
 		make-ast-unspecified
 		make-ast-if

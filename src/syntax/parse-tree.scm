@@ -46,7 +46,7 @@
 	[(and (conifer-red-tree? root)
 	      (eq? 'root (conifer-syntax-kind root)))
 	 (filter pt-sexp?
-		 (conifer-red-children root))]
+		 (vector->list (conifer-red-children root)))]
 	[else #f])))
 
   ;; Returns `node` as-is if it is an expression, `#f` otherwise.
@@ -62,7 +62,7 @@
     (lambda (node)
       (and (eq? 'atom
 		(conifer-syntax-kind node))
-	   (car (conifer-red-children node)))))
+	   (vector-ref (conifer-red-children node) 0))))
 
   ;; Returns `node` as-is if it is a boolean, `#f` otherwise.
   (define pt-boolean?
@@ -120,7 +120,7 @@
     (lambda (node)
       (and (eq? 'list
 		(conifer-syntax-kind node))
-	   (let collect-before ([elems (conifer-red-children node)]
+	   (let collect-before ([elems (vector->list (conifer-red-children node))]
 				[acc '()])
 	     (cond
 	       [(null? elems)

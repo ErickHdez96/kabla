@@ -3,6 +3,7 @@
   (export parse-str
 	  expand-str)
   (import (rnrs base)
+	  (rnrs lists)
 	  (conifer)
 	  (syntax expander base)
 	  (syntax scanner)
@@ -22,9 +23,11 @@
       (let* ([parse-result (parse-str s)]
 	     [expand-result (expand-parse-tree
 			      (conifer-make-view (car parse-result))
-			      (cons 'intrinsic-env RNRS-BASE-ENV))])
-	(cons
+			      (cons 'intrinsic-env RNRS-BASE-ENV)
+			      (cons 'green-node-builder RNRS-BASE-ENV))])
+	(cons*
 	  (car expand-result)
 	  (append
 	    (cdr expand-result)
-	    (cdr parse-result)))))))
+	    (cadr parse-result))
+	  (cddr parse-result))))))
