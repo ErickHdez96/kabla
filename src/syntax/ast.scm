@@ -1,19 +1,20 @@
 (library
   (syntax ast)
   (export make-ast-root
+	  ast-span
 	  ast-root?
 	  ast-root-items
 	  make-ast-define
 	  ast-define?
-	  ast-define-span
+	  ast-define-offset
 	  ast-define-variable
 	  ast-define-expr
-	  ast-span
+	  ast-offset
 	  ast-variable
 	  ast-expr
 	  make-ast-expr
 	  ast-expr?
-	  ast-expr-span
+	  ast-expr-offset
 	  ast-expr-kind
 	  ast-expr-value
 	  make-ast-error
@@ -44,7 +45,8 @@
 	  (only (conifer)
 		conifer-red-tree?
 		conifer-green-tree?
-		conifer-red-tree-green)
+		conifer-red-tree-green
+		conifer-text-length)
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (rnrs lists)
@@ -82,7 +84,7 @@
     ast-define
     (fields
       ; Pair of [start, end) into the parsed text.
-      span
+      offset
       ; The name of the variable being defined (as an ast-expr.)
       variable
       ; ast-expr used to initialize `variable`, `#f` if none.
@@ -90,9 +92,10 @@
       green)
     (protocol
       (lambda (new)
-	(lambda (span tree variable expr)
+	(lambda (offset tree variable expr)
+	  (assert (integer? offset))
 	  (new
-	    span
+	    offset
 	    variable
 	    expr
 	    (cond
@@ -110,7 +113,7 @@
     ast-expr
     (fields
       ; Pair of [start, length] into the parsed text.
-      span
+      offset
       ; A symbol representing the kind of the expression.
       kind
       ; The value of the expresson, literals are stored as primitives
@@ -119,9 +122,10 @@
       green)
     (protocol
       (lambda (new)
-	(lambda (span kind value tree)
+	(lambda (offset kind value tree)
+	  (assert (integer? offset))
 	  (new
-	    span
+	    offset
 	    kind
 	    value
 	    (cond
@@ -131,12 +135,24 @@
 					 "expected a red/green node, found ~a"
 					 tree)]))))))
 
+  ;; Returns the `(offset . length)` span of `node.`
+  (define ast-span
+    (lambda (node)
+      (cond
+	[(ast-expr? node) (cons (ast-expr-offset node)
+				(conifer-text-length (ast-expr-green node)))]
+	[(ast-define? node) (cons (ast-define-offset node)
+				  (conifer-text-length (ast-define-green node)))]
+	[else (error 'ast-span
+		     "invalid node: ~a"
+		     node)])))
+
   ;; Creates a new error expression. When an expression is expected, but the
   ;; datum couldn't be correctly expanded, an error is generated to preserve
   ;; the original tree.
   (define make-ast-error
-    (lambda (span green)
-      (make-ast-expr span 'error #f green)))
+    (lambda (offset green)
+      (make-ast-expr offset 'error #f green)))
 
   ;; Returns `#t` if `e` is an error expr.
   (define ast-error?
@@ -146,8 +162,8 @@
 
   ;; Returns a new boolean node.
   (define make-ast-boolean
-    (lambda (span green b)
-      (make-ast-expr span 'boolean b green)))
+    (lambda (offset green b)
+      (make-ast-expr offset 'boolean b green)))
 
   ;; Returns `#t` if `e` is a boolean expr.
   (define ast-boolean?
@@ -157,8 +173,8 @@
 
   ;; Returns a new char node.
   (define make-ast-char
-    (lambda (span green c)
-      (make-ast-expr span 'char c green)))
+    (lambda (offset green c)
+      (make-ast-expr offset 'char c green)))
 
   ;; Returns `#t` if `e` is a char expr.
   (define ast-char?
@@ -168,8 +184,8 @@
 
   ;; Returns a new string node.
   (define make-ast-string
-    (lambda (span green s)
-      (make-ast-expr span 'string s green)))
+    (lambda (offset green s)
+      (make-ast-expr offset 'string s green)))
 
   ;; Returns `#t` if `e` is a string expr.
   (define ast-string?
@@ -179,8 +195,8 @@
 
   ;; Returns a new identifier node.
   (define make-ast-identifier
-    (lambda (span green id)
-      (make-ast-expr span 'identifier id green)))
+    (lambda (offset green id)
+      (make-ast-expr offset 'identifier id green)))
 
   ;; Returns `#t` if `e` is an identifier expr.
   (define ast-identifier?
@@ -190,8 +206,8 @@
 
   ;; Returns a new symbol node.
   (define make-ast-symbol
-    (lambda (span green sy)
-      (make-ast-expr span 'symbol sy green)))
+    (lambda (offset green sy)
+      (make-ast-expr offset 'symbol sy green)))
 
   ;; Returns `#t` if `e` is a symbol expr.
   (define ast-symbol?
@@ -201,8 +217,8 @@
 
   ;; Returns a new unspecified node.
   (define make-ast-unspecified
-    (lambda (span green)
-      (make-ast-expr span 'unspecified #f green)))
+    (lambda (offset green)
+      (make-ast-expr offset 'unspecified #f green)))
 
   ;; Returns `#t` if `e` is a unspecified expr.
   (define ast-unspecified?
@@ -212,8 +228,8 @@
 
   ;; Returns a new null node.
   (define make-ast-null
-    (lambda (span green)
-      (make-ast-expr span 'null #f green)))
+    (lambda (offset green)
+      (make-ast-expr offset 'null #f green)))
 
   ;; Returns `#t` if `e` is a null expr.
   (define ast-null?
@@ -223,9 +239,9 @@
 
   ;; Returns a new list 
   (define make-ast-list
-    (lambda (span green elems)
+    (lambda (offset green elems)
       (make-ast-expr
-	span
+	offset
 	'list
 	(if (list? elems)
 	  (list->vector elems)
@@ -240,9 +256,9 @@
 
   ;; Returns a new if node 
   (define make-ast-if
-    (lambda (span green cond true . false)
+    (lambda (offset green cond true . false)
       (make-ast-expr
-	span
+	offset
 	'if
 	(cons* cond
 	       true
@@ -259,7 +275,7 @@
 
   ;; Returns a new `lambda` node.
   (define make-ast-lambda
-    (lambda (span green vars rest body)
+    (lambda (offset green vars rest body)
       (assert (list? vars))
       (for-each
 	(lambda (v)
@@ -271,7 +287,7 @@
 		   (eq? 'letrec* (ast-expr-kind body))))
 
       (make-ast-expr
-	span
+	offset
 	'lambda
 	(cons* vars
 	       rest
@@ -286,7 +302,7 @@
 
   ;; Returns a new `lambda` node.
   (define make-ast-let
-    (lambda (span green kind vars exprs)
+    (lambda (offset green kind vars exprs)
       (assert (or (eq? 'let kind)
 		  (eq? 'let* kind)
 		  (eq? 'letrec kind)
@@ -305,7 +321,7 @@
 	exprs)
 
       (make-ast-expr
-	span
+	offset
 	kind
 	(cons* vars
 	       exprs)

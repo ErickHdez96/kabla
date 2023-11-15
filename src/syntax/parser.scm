@@ -170,10 +170,9 @@
 	   (cons start
 		 (- (parser-offset p)
 		    start))]
-
 	  [else (emit-error-and-bump
 		  p
-		  "expected an opening delimiter or an atom")
+		  "expected an open delimiter or an atom")
 		#f]))))
 
   (define start-node

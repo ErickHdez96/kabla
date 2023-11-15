@@ -8,6 +8,7 @@
 (library
   (syntax parse-tree)
   (export pt-root-sexps
+	  pt-abbreviation?
 	  pt-sexp?
 	  pt-atom?
 	  pt-boolean?
@@ -23,6 +24,7 @@
 	  pt-open-delim?
 	  pt-close-delim?
 	  pt-span
+	  pt-offset
 	  (rename (conifer-syntax-kind pt-syntax-kind)))
   (import (rnrs base)
 	  (only (rnrs lists)
@@ -146,6 +148,27 @@
 		(conifer-syntax-kind node))
 	   node)))
 
+  ;; Returns a pair of `abbreviation` and sexp
+  (define pt-abbreviation?
+    (lambda (node)
+      (if (eq? 'abbreviation (conifer-syntax-kind node))
+	(let ([elems (conifer-red-children node)])
+	  (assert (>= (vector-length elems) 1))
+	  (let ([abbrev (pt-abbrev? (vector-ref elems 0))])
+	    (assert abbrev)
+	    (cons abbrev
+		  (and (>= (vector-length elems) 2)
+		       (pt-sexp? (vector-ref elems 1))))))
+	#f)))
+
+  ;; Returns a pair of `abbreviation` and sexp
+  (define pt-abbrev?
+    (lambda (node)
+      (case (conifer-syntax-kind node)
+	[(quote backtick comma comma-at hash-quote hash-backtick hash-comma hash-comma-at)
+	 node]
+	[else #f])))
+
   ;; Returns `node` as-is if it is a vector, `#f` otherwise.
   (define pt-vector?
     (lambda (node)
@@ -157,13 +180,6 @@
   (define pt-bytevector?
     (lambda (node)
       (and (eq? 'bytevector
-		(conifer-syntax-kind node))
-	   node)))
-
-  ;; Returns `node` as-is if it is an abbreviation, `#f` otherwise.
-  (define pt-abbreviation?
-    (lambda (node)
-      (and (eq? 'abbreviation
 		(conifer-syntax-kind node))
 	   node)))
 
@@ -180,6 +196,9 @@
       (and (eq? 'close-delim
 		(conifer-syntax-kind node))
 	   node)))
+
+  ;; Returns the offset of `node`.
+  (define pt-offset conifer-red-offset)
 
   ;; Returns the span of `node`. (<offset> . <length>)
   (define pt-span

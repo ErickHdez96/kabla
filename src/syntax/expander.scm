@@ -55,16 +55,27 @@
 		find)
 	  (only (rnrs records syntactic)
 		define-record-type)
+	  (only (srfi srfi-28)
+		format)
 	  (only (conifer)
 		conifer-green-node-builder
+		conifer-tree->string
 		conifer-syntax-kind
 		conifer-red-parent
 		conifer-red-offset
 		conifer-red-children
+		conifer-red-tree-green
+		conifer-make-view
 		conifer-syntax-kind
-		conifer-text-length)
+		conifer-text-length
+		conifer-push-node
+		conifer-push-token
+		conifer-start-node
+		conifer-finish-node
+		conifer-finish-builder)
 	  (only (syntax parse-tree)
 		pt-root-sexps
+		pt-abbreviation?
 		pt-sexp?
 		pt-atom?
 		pt-boolean?
@@ -77,6 +88,7 @@
 		pt-vector?
 		pt-bytevector?
 		pt-abbreviation?
+		pt-offset
 		pt-span)
 	  (only (syntax ast)
 		make-ast-root
@@ -112,8 +124,6 @@
       (mutable deferred)
       ;; Keyword and value bindings encountered so far.
       (mutable bindings)))
-
-  (define make-span cons)
 
   ;; Parses a top-level program from a red-tree `pt`.
   ;; (: expand-parse-tree (-> ParseTree [ConfigArgs] Pair[AST, List[Error]]))
@@ -152,6 +162,7 @@
 		(make-root-env)))
 	    ; saved-states
 	    '()
+	    ; green node builder
 	    (or green-node-builder
 		(conifer-green-node-builder))
 	    ; importer
@@ -181,6 +192,33 @@
 					 "unexpected context ~a"
 					 ctx)]))]
 	[(pt-list? datum) => (lambda (lst) (expand-list e datum lst ctx))]
+	[(pt-abbreviation? datum)
+	 => (lambda (abb)
+	      (let* ([builder (expander-green-node-builder e)]
+		     [new-parent (begin
+				   (conifer-start-node 
+				     builder
+				     'list)
+				   (conifer-push-token builder 'open-delim "(")
+				   (conifer-start-node builder 'atom)
+				   (case (conifer-syntax-kind (car abb))
+				     [(quote) (conifer-push-token builder 'identifier "quote")]
+				     [else (error 'expand-datum
+						  "unexpected abbreviation ~a - ~a"
+						  (conifer-syntax-kind datum)
+						  datum)])
+				   (conifer-finish-node builder)
+				   (conifer-push-token builder 'whitespace " ")
+				   (if (cdr abb)
+				     (conifer-push-node builder (conifer-red-tree-green (cdr abb)))
+				     (conier-push-token builder 'identifier (format
+									      "<error - ~a>"
+									      (conifer-tree->string datum))))
+				   (conifer-push-token builder 'close-delim ")")
+				   (conifer-finish-node builder)
+				   (conifer-make-view (conifer-finish-builder builder)
+						      (conifer-red-offset datum)))])
+		(expand-datum e new-parent ctx)))]
 	[else (error
 		'expand-datum
 		"unexpected datum ~a: ~a"
@@ -220,12 +258,12 @@
   ;; Expands the inner child of an atom red-tree.
   (define expand-atom
     (lambda (e atom)
-      (let ([span (pt-span atom)])
+      (let ([offset (pt-offset atom)])
 	(cond
-	  [(pt-boolean? atom) (make-ast-boolean span atom (pt-boolean-value atom))]
-	  [(pt-char? atom) => (lambda (c) (make-ast-char span atom c))]
-	  [(pt-string? atom) => (lambda (s) (make-ast-string span atom s))]
-	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier span atom v))]
+	  [(pt-boolean? atom) (make-ast-boolean offset atom (pt-boolean-value atom))]
+	  [(pt-char? atom) => (lambda (c) (make-ast-char offset atom c))]
+	  [(pt-string? atom) => (lambda (s) (make-ast-string offset atom s))]
+	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier offset atom v))]
 	  [else (error 'expand-atom
 		       "unknown atom kind: ~a"
 		       (conifer-syntax-kind atom))]))))
@@ -234,7 +272,7 @@
     (lambda (e parent lst ctx)
       (let ([before-dot (car lst)]
 	    [after-dot (cdr lst)]
-	    [span (pt-span parent)])
+	    [offset (pt-offset parent)])
 	(cond
 	  [(null? before-dot)
 	   (case ctx
@@ -245,11 +283,11 @@
 	      (when (vector-length (conifer-red-children parent))
 		(emit-error-with-hint
 		  e
-		  span
+		  (pt-span parent)
 		  "empty lists not allowed"
 		  (make-hint "try '()")))
 
-	      (make-ast-null span parent)]
+	      (make-ast-null offset parent)]
 	     [else (defer-datum e 'datum parent)])]
 
 	  [else
@@ -271,7 +309,7 @@
 		  ; we still defer it for error recovery purposes
 		  (defer-define e parent before-dot)
 		  (make-ast-unspecified
-		    (pt-span parent parent)
+		    (pt-offset parent parent)
 		    parent)]
 		 [(keyword-expr-list? e before-dot)
 		  => (lambda (transformer)
@@ -293,7 +331,7 @@
 			     (vector->list (conifer-red-children parent))))
 			 "dot '.' not allowed in this context"))
 		     (make-ast-list
-		       span
+		       offset
 		       parent
 		       elems))])]
 	      [else (error 'expand-list

@@ -26,7 +26,8 @@
 		pt-dot?
 		pt-open-delim?
 		pt-close-delim?
-		pt-span)
+		pt-span
+		pt-offset)
 	  (only (syntax expander)
 		expand-datum
 		expand-emit-error
@@ -64,7 +65,7 @@
 	 => (lambda (var)
 	      (let ([expr (or (and (>= elems-length 3)
 				   (expand-datum e (caddr elems) 'expr))
-			      (make-ast-unspecified (pt-span node) node))])
+			      (make-ast-unspecified (pt-offset node) node))])
 		(when (>= elems-length 4)
 		  (expand-emit-error
 		    e
@@ -74,10 +75,10 @@
 			    (conifer-tree->string (car (cdddr elems))))))
 		(maybe-unexpected-dot e node dot)
 		(make-ast-define
-		  (pt-span node)
+		  (pt-offset node)
 		  node
 		  (make-ast-identifier
-		    (pt-span (cadr elems))
+		    (pt-offset (cadr elems))
 		    (cadr elems)
 		    var)
 		  expr)))]
@@ -108,7 +109,7 @@
 				    e
 				    last-span
 				    "expected a condition")
-				  (make-ast-unspecified (pt-span node) node)])]
+				  (make-ast-unspecified (pt-offset node) node)])]
 	     [true (cond
 		     [(>= elems-length 3)
 		      (expand-datum e (caddr elems) 'expr)]
@@ -116,11 +117,11 @@
 			     e
 			     last-span
 			     "expected a true branch")
-			   (make-ast-unspecified (pt-span node) node)])]
+			   (make-ast-unspecified (pt-offset node) node)])]
 	     [false (cond
 		      [(>= elems-length 4)
 		       (expand-datum e (cadddr elems) 'expr)]
-		      [else (make-ast-unspecified (pt-span node) node)])])
+		      [else (make-ast-unspecified (pt-offset node) node)])])
 
 	(when (>= elems-length 5)
 	  (expand-emit-error
@@ -133,7 +134,7 @@
 	(maybe-unexpected-dot e node dot)
 
 	(make-ast-if
-	  (pt-span node)
+	  (pt-offset node)
 	  node
 	  conditional
 	  true

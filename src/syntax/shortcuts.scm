@@ -24,7 +24,7 @@
 	     [expand-result (expand-parse-tree
 			      (conifer-make-view (car parse-result))
 			      (cons 'intrinsic-env RNRS-BASE-ENV)
-			      (cons 'green-node-builder RNRS-BASE-ENV))])
+			      (cons 'green-node-builder (cddr parse-result)))])
 	(cons*
 	  (car expand-result)
 	  (append

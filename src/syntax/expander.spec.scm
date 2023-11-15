@@ -43,7 +43,7 @@
       [(ast-expr? expected)
        (cond
 	 [(or (not (ast-expr? actual)) 
-	      (not (equal? (ast-expr-span expected) (ast-expr-span actual)))
+	      (not (equal? (ast-expr-offset expected) (ast-expr-offset actual)))
 	      (not (equal? (ast-expr-kind expected) (ast-expr-kind actual))))
 	  (test-equal expected actual)]
 	 [else
@@ -52,7 +52,7 @@
       [(ast-define? expected)
        (cond
 	 [(or (not (ast-define? actual)) 
-	      (not (equal? (ast-define-span expected) (ast-define-span actual))))
+	      (not (equal? (ast-define-offset expected) (ast-define-offset actual))))
 	  (test-equal expected actual)]
 	 [else
 	   (check-node (ast-define-variable expected)
@@ -94,100 +94,100 @@
   "expander boolean"
   (check
     "#t"
-    (make-ast-boolean '(0 . 2) gn #t))
+    (make-ast-boolean 0 gn #t))
 
   (check
     "#T"
-    (make-ast-boolean '(0 . 2) gn #t))
+    (make-ast-boolean 0 gn #t))
 
   (check
     "#f"
-    (make-ast-boolean '(0 . 2) gn #f))
+    (make-ast-boolean 0 gn #f))
 
   (check
     "#F"
-    (make-ast-boolean '(0 . 2) gn #f)))
+    (make-ast-boolean 0 gn #f)))
 
 (test-group
   "expander char"
   (check
     "#\\a"
-    (make-ast-char '(0 . 3) gn #\a))
+    (make-ast-char 0 gn #\a))
 
   (check
     "#\\λ"
-    (make-ast-char '(0 . 3) gn #\λ))
+    (make-ast-char 0 gn #\λ))
 
   (check
     "#\\nul"
-    (make-ast-char '(0 . 5) gn #\nul))
+    (make-ast-char 0 gn #\nul))
 
   (check
     "#\\alarm"
-    (make-ast-char '(0 . 7) gn #\alarm))
+    (make-ast-char 0 gn #\alarm))
 
   (check
     "#\\backspace"
-    (make-ast-char '(0 . 11) gn #\backspace))
+    (make-ast-char 0 gn #\backspace))
 
   (check
     "#\\tab"
-    (make-ast-char '(0 . 5) gn #\tab))
+    (make-ast-char 0 gn #\tab))
 
   (check
     "#\\linefeed"
-    (make-ast-char '(0 . 10) gn #\linefeed))
+    (make-ast-char 0 gn #\linefeed))
 
   (check
     "#\\newline"
-    (make-ast-char '(0 . 9) gn #\newline))
+    (make-ast-char 0 gn #\newline))
 
   (check
     "#\\vtab"
-    (make-ast-char '(0 . 6) gn #\vtab))
+    (make-ast-char 0 gn #\vtab))
 
   (check
     "#\\page"
-    (make-ast-char '(0 . 6) gn #\page))
+    (make-ast-char 0 gn #\page))
 
   (check
     "#\\return"
-    (make-ast-char '(0 . 8) gn #\return))
+    (make-ast-char 0 gn #\return))
 
   (check
     "#\\esc"
-    (make-ast-char '(0 . 5) gn #\esc))
+    (make-ast-char 0 gn #\esc))
 
   (check
     "#\\space"
-    (make-ast-char '(0 . 7) gn #\space))
+    (make-ast-char 0 gn #\space))
 
   (check
     "#\\delete"
-    (make-ast-char '(0 . 8) gn #\delete))
+    (make-ast-char 0 gn #\delete))
 
   (check
     "#\\x3bb"
-    (make-ast-char '(0 . 6) gn #\λ))
+    (make-ast-char 0 gn #\λ))
 
   (check
     "#\\x3c0"
-    (make-ast-char '(0 . 6) gn #\π))
+    (make-ast-char 0 gn #\π))
 
   (check
     "#\\x2654"
-    (make-ast-char '(0 . 7) gn #\♔)))
+    (make-ast-char 0 gn #\♔)))
 
 (test-group
   "expander char error"
   (check
     "#\\Space"
-    (make-ast-char '(0 . 7) gn #\xFFFD)
+    (make-ast-char 0 gn #\xFFFD)
     '(((0 . 7) "invalid character name: Space")))
 
   (check
     "#\\xDAAA"
-    (make-ast-char '(0 . 7) gn #\xFFFD)
+    (make-ast-char 0 gn #\xFFFD)
     '(((0 . 7)
        "hex scalar value must be in range [#x0, #xD7FF] ∪ [#xE000, #x10FFFF]"))))
 
@@ -195,55 +195,55 @@
   "expander string"
   (check
     (list->string '(#\" #\a #\"))
-    (make-ast-string '(0 . 3) gn "a"))
+    (make-ast-string 0 gn "a"))
 
   (check
     (list->string '(#\" #\\ #\a #\"))
-    (make-ast-string '(0 . 4) gn "\a"))
+    (make-ast-string 0 gn "\a"))
 
   (check
     (list->string '(#\" #\\ #\b #\"))
-    (make-ast-string '(0 . 4) gn "\b"))
+    (make-ast-string 0 gn "\b"))
 
   (check
     (list->string '(#\" #\\ #\t #\"))
-    (make-ast-string '(0 . 4) gn "\t"))
+    (make-ast-string 0 gn "\t"))
 
   (check
     (list->string '(#\" #\\ #\n #\"))
-    (make-ast-string '(0 . 4) gn "\n"))
+    (make-ast-string 0 gn "\n"))
 
   (check
     (list->string '(#\" #\\ #\v #\"))
-    (make-ast-string '(0 . 4) gn "\v"))
+    (make-ast-string 0 gn "\v"))
 
   (check
     (list->string '(#\" #\\ #\f #\"))
-    (make-ast-string '(0 . 4) gn "\f"))
+    (make-ast-string 0 gn "\f"))
 
   (check
     (list->string '(#\" #\\ #\r #\"))
-    (make-ast-string '(0 . 4) gn "\r"))
+    (make-ast-string 0 gn "\r"))
 
   (check
     (list->string '(#\" #\\ #\" #\"))
-    (make-ast-string '(0 . 4) gn "\""))
+    (make-ast-string 0 gn "\""))
 
   (check
     (list->string '(#\" #\\ #\\ #\"))
-    (make-ast-string '(0 . 4) gn "\\")))
+    (make-ast-string 0 gn "\\")))
 
 (test-group
   "expander string error"
 
   (check
     (list->string '(#\"))
-    (make-ast-string '(0 . 1) gn "")
+    (make-ast-string 0 gn "")
     '(((0 . 1) "unterminated string")))
 
   (check
     (list->string '(#\" #\\ #\q))
-    (make-ast-string '(0 . 3) gn "\xFFFD;")
+    (make-ast-string 0 gn "\xFFFD;")
     '(((1 . 2) "invalid escape sequence \\q")
       ((0 . 3) "unterminated string"))))
 
@@ -252,21 +252,21 @@
   (check
     "a"
     (make-ast-identifier
-      '(0 . 1)
+      0
       gn
       'a))
 
   (check
     "set!"
     (make-ast-identifier
-      '(0 . 4)
+      0
       gn
       'set!))
 
   (check
     "hello-world"
     (make-ast-identifier
-      '(0 . 11)
+      0
       gn
       'hello-world)))
 
@@ -275,30 +275,30 @@
   (check
     "(f)"
     (make-ast-list
-      '(0 . 3)
+      0
       gn
       (list
 	(make-ast-identifier
-	  '(1 . 1)
+	  1
 	  gn
 	  'f))))
 
   (check
     "(char=? #\\a #\\a)"
     (make-ast-list
-      '(0 . 16)
+      0
       gn
       (list
 	(make-ast-identifier
-	  '(1 . 6)
+	  1
 	  gn
 	  'char=?)
 	(make-ast-char
-	  '(8 . 3)
+	  8
 	  gn
 	  #\a)
 	(make-ast-char
-	  '(12 . 3)
+	  12
 	  gn
 	  #\a)))))
 
@@ -307,17 +307,17 @@
 
   (check
     "()"
-    (make-ast-null '(0 . 2) gn)
+    (make-ast-null 0 gn)
     '(((0 . 2) "empty lists not allowed" (#f . "try '()"))))
 
   (check
     "(a . ())"
     (make-ast-list
-      '(0 . 8)
+      0
       gn
       (list
 	(make-ast-identifier
-	  '(1 . 1)
+	  1
 	  gn
 	  'a)))
     '(((3 . 1) "dot '.' not allowed in this context")))
@@ -325,14 +325,14 @@
   (check
     "(id ())"
     (make-ast-list
-      '(0 . 7)
+      0
       gn
       (list
 	(make-ast-identifier
-	  '(1 . 2)
+	  1
 	  gn
 	  'id)
-	(make-ast-null '(4 . 2) gn)))
+	(make-ast-null 4 gn)))
     '(((4 . 2) "empty lists not allowed" (#f . "try '()")))))
 
 (test-group
@@ -340,88 +340,88 @@
   (check
     "(if #t #\\a #f)"
     (make-ast-if
-      '(0 . 14)
+      0
       gn
       (make-ast-boolean
-	'(4 . 2)
+	4
 	gn
 	#t)
       (make-ast-char
-	'(7 . 3)
+	7
 	gn
 	#\a)
       (make-ast-boolean
-	'(11 . 2)
+	11
 	gn
 	#f)))
 
   (check
     "(if #f a)"
     (make-ast-if
-      '(0 . 9)
+      0
       gn
       (make-ast-boolean
-	'(4 . 2)
+	4
 	gn
 	#f)
       (make-ast-identifier
-	'(7 . 1)
+	7
 	gn
 	'a)
-      (make-ast-unspecified '(0 . 9) gn))))
+      (make-ast-unspecified 0 gn))))
 
 (test-group
   "expander if error"
   (check
     "(if)"
     (make-ast-if
-      '(0 . 4)
+      0
       gn
-      (make-ast-unspecified '(0 . 4) gn)
-      (make-ast-unspecified '(0 . 4) gn)
-      (make-ast-unspecified '(0 . 4) gn))
+      (make-ast-unspecified 0 gn)
+      (make-ast-unspecified 0 gn)
+      (make-ast-unspecified 0 gn))
     '(((3 . 1) "expected a condition")
       ((3 . 1) "expected a true branch")))
 
   (check
     "(if #t)"
     (make-ast-if
-      '(0 . 7)
+      0
       gn
-      (make-ast-boolean '(4 . 2) gn #t)
-      (make-ast-unspecified '(0 . 7) gn)
-      (make-ast-unspecified '(0 . 7) gn))
+      (make-ast-boolean 4 gn #t)
+      (make-ast-unspecified 0 gn)
+      (make-ast-unspecified 0 gn))
     '(((6 . 1) "expected a true branch")))
 
   (check
     "(if #t . #t)"
     (make-ast-if
-      '(0 . 12)
+      0
       gn
-      (make-ast-boolean '(4 . 2) gn #t)
-      (make-ast-unspecified '(0 . 12) gn)
-      (make-ast-unspecified '(0 . 12) gn))
+      (make-ast-boolean 4 gn #t)
+      (make-ast-unspecified 0 gn)
+      (make-ast-unspecified 0 gn))
     '(((7 . 1) "expected a true branch")
       ((7 . 1) "dot '.' not allowed in this context")))
 
   (check
     "(if #t #t #t #t)"
     (make-ast-if
-      '(0 . 16)
+      0
       gn
-      (make-ast-boolean '(4 . 2) gn #t)
-      (make-ast-boolean '(7 . 2) gn #t)
-      (make-ast-boolean '(10 . 2) gn #t))
+      (make-ast-boolean 4 gn #t)
+      (make-ast-boolean 7 gn #t)
+      (make-ast-boolean 10 gn #t))
     '(((13 . 2) "expected ), found #t")))
 
   (check
     "[if #t #t #t #f]"
     (make-ast-if
-      '(0 . 16)
+      0
       gn
-      (make-ast-boolean '(4 . 2) gn #t)
-      (make-ast-boolean '(7 . 2) gn #t)
-      (make-ast-boolean '(10 . 2) gn #t))
+      (make-ast-boolean 4 gn #t)
+      (make-ast-boolean 7 gn #t)
+      (make-ast-boolean 10 gn #t))
     '(((13 . 2) "expected ], found #f"))))
 
 (test-group
@@ -429,33 +429,33 @@
   (check
     "(define v)"
     (make-ast-define
-      '(0 . 10)
+      0
       gn
-      (make-ast-identifier '(8 . 1) gn 'v)
-      (make-ast-unspecified '(0 . 10) gn)))
+      (make-ast-identifier 8 gn 'v)
+      (make-ast-unspecified 0 gn)))
 
   (check
     "(define b #t)"
     (make-ast-define
-      '(0 . 13)
+      0
       gn
-      (make-ast-identifier '(8 . 1) gn 'b)
-      (make-ast-boolean '(10 . 2) gn #t)))
+      (make-ast-identifier 8 gn 'b)
+      (make-ast-boolean 10 gn #t)))
 
   (check
     "(define a #t)
      (define b a)"
     (list
       (make-ast-define
-	'(0 . 13)
+	0
 	gn
-	(make-ast-identifier '(8 . 1) gn 'a)
-	(make-ast-boolean '(10 . 2) gn #t))
+	(make-ast-identifier 8 gn 'a)
+	(make-ast-boolean 10 gn #t))
       (make-ast-define
-	'(19 . 12)
+	19
 	gn
-	(make-ast-identifier '(27 . 1) gn 'b)
-	(make-ast-identifier '(29 . 1) gn 'a))))
+	(make-ast-identifier 27 gn 'b)
+	(make-ast-identifier 29 gn 'a))))
 
   (check
     "(define)"
@@ -470,14 +470,14 @@
   (check
     "(define a #t #f)"
     (make-ast-define
-      '(0 . 16)
+      0
       gn
       (make-ast-identifier
-	'(8 . 1)
+	8
 	gn
 	'a)
       (make-ast-boolean
-	'(10 . 2)
+	10
 	gn
 	#t))
     '(((13 . 2) "expected ), found #f")))
@@ -485,14 +485,14 @@
   (check
     "[define a #t #f]"
     (make-ast-define
-      '(0 . 16)
+      0
       gn
       (make-ast-identifier
-	'(8 . 1)
+	8
 	gn
 	'a)
       (make-ast-boolean
-	'(10 . 2)
+	10
 	gn
 	#t))
     '(((13 . 2) "expected ], found #f")))
@@ -500,13 +500,13 @@
   (check
     "(define a . #f)"
     (make-ast-define
-      '(0 . 15)
+      0
       gn
       (make-ast-identifier
-	'(8 . 1)
+	8
 	gn
 	'a)
-      (make-ast-unspecified '(0 . 15) gn))
+      (make-ast-unspecified 0 gn))
     '(((10 . 1) "dot '.' not allowed in this context"))))
 
 (test-group
@@ -514,163 +514,163 @@
   (check
     "(lambda (x) x)"
     (make-ast-lambda
-      '(0 . 14)
+      0
       gn
       (list
-	(make-ast-identifier '(9 . 1) gn 'x))
+	(make-ast-identifier 9 gn 'x))
       #f
       (make-ast-let
-	'(0 . 14)
+	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier '(12 . 1) gn 'x)))))
+	  (make-ast-identifier 12 gn 'x)))))
 
   (check
     "(lambda (x y) y)"
     (make-ast-lambda
-      '(0 . 16)
+      0
       gn
       (list
-	(make-ast-identifier '(9 . 1) gn 'x)
-	(make-ast-identifier '(11 . 1) gn 'y))
+	(make-ast-identifier 9 gn 'x)
+	(make-ast-identifier 11 gn 'y))
       #f
       (make-ast-let
-	'(0 . 16)
+	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier '(14 . 1) gn 'y)))))
+	  (make-ast-identifier 14 gn 'y)))))
 
   (check
     "(lambda (x . rest) rest)"
     (make-ast-lambda
-      '(0 . 24)
+      0
       gn
       (list
-	(make-ast-identifier '(9 . 1) gn 'x))
-      (make-ast-identifier '(13 . 4) gn 'rest)
+	(make-ast-identifier 9 gn 'x))
+      (make-ast-identifier 13 gn 'rest)
       (make-ast-let
-	'(0 . 24)
+	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier '(19 . 4) gn 'rest)))))
+	  (make-ast-identifier 19 gn 'rest)))))
 
   (check
     "(lambda x x)"
     (make-ast-lambda
-      '(0 . 12)
+      0
       gn
       '()
-      (make-ast-identifier '(8 . 1) gn 'x)
+      (make-ast-identifier 8 gn 'x)
       (make-ast-let
-	'(0 . 12)
+	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier '(10 . 1) gn 'x)))))
+	  (make-ast-identifier 10 gn 'x)))))
 
   (check
     "(lambda x (x) (x))"
     (make-ast-lambda
-      '(0 . 18)
+      0
       gn
       '()
-      (make-ast-identifier '(8 . 1) gn 'x)
+      (make-ast-identifier 8 gn 'x)
       (make-ast-let
-	'(0 . 18)
+	0
 	gn
 	'letrec*
 	'()
 	(list
 	  (make-ast-list
-	    '(10 . 3)
+	    10
 	    gn
 	    (list
-	      (make-ast-identifier '(11 . 1) gn 'x)))
+	      (make-ast-identifier 11 gn 'x)))
 	  (make-ast-list
-	    '(14 . 3)
+	    14
 	    gn
 	    (list
-	      (make-ast-identifier '(15 . 1) gn 'x)))))))
+	      (make-ast-identifier 15 gn 'x)))))))
 
   (check
     "(lambda (x) (define a x) a)"
     (make-ast-lambda
-      '(0 . 27)
+      0
       gn
-      (list (make-ast-identifier '(9 . 1) gn 'x))
+      (list (make-ast-identifier 9 gn 'x))
       #f
       (make-ast-let
-	'(0 . 27)
+	0
 	gn
 	'letrec*
 	(list
-	  (cons (make-ast-identifier '(20 . 1) gn 'a)
-		(make-ast-identifier '(22 . 1) gn 'x)))
+	  (cons (make-ast-identifier 20 gn 'a)
+		(make-ast-identifier 22 gn 'x)))
 	(list
-	  (make-ast-identifier '(25 . 1) gn 'a)))))
+	  (make-ast-identifier 25 gn 'a)))))
 
   (check
     "(lambda (x) x (define a x))"
     (make-ast-lambda
-      '(0 . 27)
+      0
       gn
-      (list (make-ast-identifier '(9 . 1) gn 'x))
+      (list (make-ast-identifier 9 gn 'x))
       #f
       (make-ast-let
-	'(0 . 27)
+	0
 	gn
 	'letrec*
 	(list
-	  (cons (make-ast-identifier '(22 . 1) gn 'a)
-		(make-ast-identifier '(24 . 1) gn 'x)))
+	  (cons (make-ast-identifier 22 gn 'a)
+		(make-ast-identifier 24 gn 'x)))
 	(list
-	  (make-ast-identifier '(12 . 1) gn 'x))))
+	  (make-ast-identifier 12 gn 'x))))
     '(((14 . 12) "definitions are not allowed after the first expression")))
 
   (check
     "(lambda (#f . #t) x)"
     (make-ast-lambda
-      '(0 . 20)
+      0
       gn
       '()
       (make-ast-identifier
-	'(14 . 2)
+	14
 	gn
 	(string->symbol "|#t|"))
       (make-ast-let
-	'(0 . 20)
+	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier '(18 . 1) gn 'x))))
+	  (make-ast-identifier 18 gn 'x))))
     '(((9 . 2) "expected an identifier, found #f")
       ((14 . 2) "expected an identifier, found #t")))
 
   (check
     "(lambda #t x)"
     (make-ast-lambda
-      '(0 . 13)
+      0
       gn
       '()
       (make-ast-identifier
-	'(8 . 2)
+	8
 	gn
 	(string->symbol "|#t|"))
       (make-ast-let
-	'(0 . 13)
+	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier '(11 . 1) gn 'x))))
+	  (make-ast-identifier 11 gn 'x))))
     '(((8 . 2) "expected an identifier or an open delimiter, found #t"))))
 
 (test-group
@@ -678,43 +678,52 @@
   (check
     "(quote a)"
     (make-ast-symbol
-      '(0 . 9)
+      0
       gn
       'a))
 
   (check
     "(quote #t)"
     (make-ast-boolean
-      '(0 . 10)
+      0
       gn
       #t))
 
   (check
     "(quote #f)"
     (make-ast-boolean
-      '(0 . 10)
+      0
       gn
       #f))
 
   (check
     "(quote #\\a)"
     (make-ast-char
-      '(0 . 11)
+      0
       gn
       #\a))
 
   (check
     "(quote ())"
-    (make-ast-null '(0 . 10) gn))
+    (make-ast-null 0 gn))
 
   (check
     "(quote \"hi\")"
-    (make-ast-string '(0 . 12) gn "hi")))
+    (make-ast-string 0 gn "hi")))
+
+(test-group
+  "expander abbreviations"
+  (check
+    "'a"
+    (make-ast-symbol
+      0
+      gn
+      'a)))
 
 (test-group
   "expander multiple atoms"
   (check
     "#t #f"
     (list
-      (make-ast-boolean '(0 . 2) gn #t)
-      (make-ast-boolean '(3 . 2) gn #f))))
+      (make-ast-boolean 0 gn #t)
+      (make-ast-boolean 3 gn #f))))

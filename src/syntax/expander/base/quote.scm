@@ -13,6 +13,7 @@
 		make-ast-symbol)
 	  (only (syntax parse-tree)
 		pt-span
+		pt-offset
 		pt-atom?
 		pt-boolean?
 		pt-boolean-value
@@ -59,22 +60,22 @@
 	      (cond
 		[(pt-identifier? atom) => (lambda (ident)
 					    (make-ast-symbol
-					      (pt-span node)
+					      (pt-offset node)
 					      node
 					      ident))]
 		[(pt-boolean? atom)
 		 (make-ast-boolean
-		   (pt-span node)
+		   (pt-offset node)
 		   node
 		   (pt-boolean-value atom))]
 		[(pt-char? atom) => (lambda (char)
 				      (make-ast-char
-					(pt-span node)
+					(pt-offset node)
 					node
 					char))]
 		[(pt-string? atom) => (lambda (str)
 					(make-ast-string
-					  (pt-span node)
+					  (pt-offset node)
 					  node
 					  str))]
 		[else (error 'quote-datum
@@ -86,7 +87,7 @@
 	      (cond
 		[(and (null? (car elems))
 		      (null? (cdr elems)))
-		 (make-ast-null (pt-span node) node)]
+		 (make-ast-null (pt-offset node) node)]
 		[else (error 'quote-datum
 			     "cannot quote lists yet ~a"
 			     elem)]))]

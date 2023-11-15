@@ -56,7 +56,7 @@
 (define check
   (lambda (input expected . errors)
     (let ([parse-result (let ([tokens (scan-string input)])
-                          (parse-tokens tokens))])
+			  (parse-tokens tokens))])
       (test-equal
         errors
         (cadr parse-result))
@@ -432,7 +432,7 @@
         atom@5..6
           int-number@5..6 \"2\"
         close-delim@6..7 \")\""
-    '((3 . 1) "expected an opening delimiter or an atom"))
+    '((3 . 1) "expected an open delimiter or an atom"))
 
 
   (check
@@ -590,4 +590,13 @@
     root@0..3
       atom@0..3
         string@0..3 \"\"hi\""
-    '((0 . 3) "unterminated string")))
+    '((0 . 3) "unterminated string"))
+
+  (check
+    "'|"
+    "
+    root@0..2
+      abbreviation@0..2
+        quote@0..1 \"'\"
+        error@1..2 \"|\""
+    '((1 . 1) "expected an open delimiter or an atom")))

@@ -12,7 +12,8 @@
           (only (conifer)
                 conifer-tree->string)
           (only (syntax ast)
-                ast-define-span
+		ast-span
+                ast-define-offset
                 ast-define-variable
                 ast-define-expr
                 ast-define?
@@ -24,7 +25,8 @@
                 pt-atom?
                 pt-identifier?
                 pt-list?
-                pt-span)
+                pt-span
+		pt-offset)
           (only (syntax expander)
                 expand-datum
                 expand-emit-error
@@ -81,7 +83,7 @@
                           seen-expr)
                      (expand-emit-error
                        e
-                       (ast-define-span (car items))
+                       (ast-span (car items))
                        "definitions are not allowed after the first expression")
                      (loop (cdr items)
                            seen-expr)]
@@ -96,12 +98,12 @@
                   (pt-span node)
                   "expected at least one expression"))
               (make-ast-lambda
-                (pt-span node)
+                (pt-offset node)
 		node
                 (car formals)
                 (cdr formals)
                 (make-ast-let
-                  (pt-span node)
+                  (pt-offset node)
 		  node
                   'letrec*
                   defs
@@ -117,7 +119,7 @@
                    pt-identifier?)
          => (lambda (formal)
               (cons '() (make-ast-identifier
-                          (pt-span node)
+                          (pt-offset node)
 			  node
                           formal)))]
         [(pt-list? node)
@@ -136,7 +138,7 @@
                                                 pt-identifier?)
                                       => (lambda (rest)
                                            (make-ast-identifier
-                                             (pt-span (cadr f-elems))
+                                             (pt-offset (cadr f-elems))
 					     (cadr f-elems)
                                              rest))]
                                      [else (expand-emit-error
@@ -146,7 +148,7 @@
                                                "expected an identifier, found ~a"
                                                (conifer-tree->string (cadr f-elems))))
                                            (make-ast-identifier
-                                             (pt-span (cadr f-elems))
+                                             (pt-offset (cadr f-elems))
 					     (cadr f-elems)
                                              (string->symbol
                                                (format
@@ -167,7 +169,7 @@
                    => (lambda (var)
                         (loop (cdr before-dot)
                               (cons (make-ast-identifier
-                                      (pt-span (car before-dot))
+                                      (pt-offset (car before-dot))
 				      (car before-dot)
                                       var)
                                     formals)))]
@@ -185,7 +187,7 @@
             (format "expected an identifier or an open delimiter, found ~a"
                     (conifer-tree->string node)))
           (cons '() (make-ast-identifier
-                      (pt-span node)
+                      (pt-offset node)
 		      node
                       (string->symbol
                         (format
