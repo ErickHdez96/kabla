@@ -251,24 +251,24 @@
       ((0 . 3) "unterminated string"))))
 
 (test-group
-  "expander identifiers"
+  "expander variables"
   (check
     "a"
-    (make-ast-identifier
+    (make-ast-var
       0
       gn
       'a))
 
   (check
     "set!"
-    (make-ast-identifier
+    (make-ast-var
       0
       gn
       'set!))
 
   (check
     "hello-world"
-    (make-ast-identifier
+    (make-ast-var
       0
       gn
       'hello-world)))
@@ -281,7 +281,7 @@
       0
       gn
       (list
-	(make-ast-identifier
+	(make-ast-var
 	  1
 	  gn
 	  'f))))
@@ -292,7 +292,7 @@
       0
       gn
       (list
-	(make-ast-identifier
+	(make-ast-var
 	  1
 	  gn
 	  'char=?)
@@ -319,7 +319,7 @@
       0
       gn
       (list
-	(make-ast-identifier
+	(make-ast-var
 	  1
 	  gn
 	  'a)))
@@ -331,7 +331,7 @@
       0
       gn
       (list
-	(make-ast-identifier
+	(make-ast-var
 	  1
 	  gn
 	  'id)
@@ -367,7 +367,7 @@
 	4
 	gn
 	#f)
-      (make-ast-identifier
+      (make-ast-var
 	7
 	gn
 	'a)
@@ -434,7 +434,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-identifier 8 gn 'v)
+      (make-ast-var 8 gn 'v)
       (make-ast-unspecified 0 gn)))
 
   (check
@@ -442,7 +442,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-identifier 8 gn 'b)
+      (make-ast-var 8 gn 'b)
       (make-ast-boolean 10 gn #t)))
 
   (check
@@ -452,13 +452,13 @@
       (make-ast-define
 	0
 	gn
-	(make-ast-identifier 8 gn 'a)
+	(make-ast-var 8 gn 'a)
 	(make-ast-boolean 10 gn #t))
       (make-ast-define
 	19
 	gn
-	(make-ast-identifier 27 gn 'b)
-	(make-ast-identifier 29 gn 'a)))))
+	(make-ast-var 27 gn 'b)
+	(make-ast-var 29 gn 'a)))))
 
 (test-group
   "expander define error"
@@ -477,7 +477,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-identifier
+      (make-ast-var
 	8
 	gn
 	'a)
@@ -492,7 +492,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-identifier
+      (make-ast-var
 	8
 	gn
 	'a)
@@ -507,7 +507,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-identifier
+      (make-ast-var
 	8
 	gn
 	'a)
@@ -532,7 +532,7 @@
       0
       gn
       (list
-	(make-ast-identifier 9 gn 'x))
+	(make-ast-var 9 gn 'x))
       #f
       (make-ast-let
 	0
@@ -540,7 +540,7 @@
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier 12 gn 'x)))))
+	  (make-ast-var 12 gn 'x)))))
 
   (check
     "(lambda (x y) y)"
@@ -548,8 +548,8 @@
       0
       gn
       (list
-	(make-ast-identifier 9 gn 'x)
-	(make-ast-identifier 11 gn 'y))
+	(make-ast-var 9 gn 'x)
+	(make-ast-var 11 gn 'y))
       #f
       (make-ast-let
 	0
@@ -557,7 +557,7 @@
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier 14 gn 'y)))))
+	  (make-ast-var 14 gn 'y)))))
 
   (check
     "(lambda (x . rest) rest)"
@@ -565,15 +565,15 @@
       0
       gn
       (list
-	(make-ast-identifier 9 gn 'x))
-      (make-ast-identifier 13 gn 'rest)
+	(make-ast-var 9 gn 'x))
+      (make-ast-var 13 gn 'rest)
       (make-ast-let
 	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier 19 gn 'rest)))))
+	  (make-ast-var 19 gn 'rest)))))
 
   (check
     "(lambda x x)"
@@ -581,14 +581,14 @@
       0
       gn
       '()
-      (make-ast-identifier 8 gn 'x)
+      (make-ast-var 8 gn 'x)
       (make-ast-let
 	0
 	gn
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier 10 gn 'x)))))
+	  (make-ast-var 10 gn 'x)))))
 
   (check
     "(lambda x (x) (x))"
@@ -596,7 +596,7 @@
       0
       gn
       '()
-      (make-ast-identifier 8 gn 'x)
+      (make-ast-var 8 gn 'x)
       (make-ast-let
 	0
 	gn
@@ -607,46 +607,46 @@
 	    10
 	    gn
 	    (list
-	      (make-ast-identifier 11 gn 'x)))
+	      (make-ast-var 11 gn 'x)))
 	  (make-ast-list
 	    14
 	    gn
 	    (list
-	      (make-ast-identifier 15 gn 'x)))))))
+	      (make-ast-var 15 gn 'x)))))))
 
   (check
     "(lambda (x) (define a x) a)"
     (make-ast-lambda
       0
       gn
-      (list (make-ast-identifier 9 gn 'x))
+      (list (make-ast-var 9 gn 'x))
       #f
       (make-ast-let
 	0
 	gn
 	'letrec*
 	(list
-	  (cons (make-ast-identifier 20 gn 'a)
-		(make-ast-identifier 22 gn 'x)))
+	  (cons (make-ast-var 20 gn 'a)
+		(make-ast-var 22 gn 'x)))
 	(list
-	  (make-ast-identifier 25 gn 'a)))))
+	  (make-ast-var 25 gn 'a)))))
 
   (check
     "(lambda (x) x (define a x))"
     (make-ast-lambda
       0
       gn
-      (list (make-ast-identifier 9 gn 'x))
+      (list (make-ast-var 9 gn 'x))
       #f
       (make-ast-let
 	0
 	gn
 	'letrec*
 	(list
-	  (cons (make-ast-identifier 22 gn 'a)
-		(make-ast-identifier 24 gn 'x)))
+	  (cons (make-ast-var 22 gn 'a)
+		(make-ast-var 24 gn 'x)))
 	(list
-	  (make-ast-identifier 12 gn 'x))))
+	  (make-ast-var 12 gn 'x))))
     '(((14 . 12) "definitions are not allowed after the first expression")))
 
   (check
@@ -655,7 +655,7 @@
       0
       gn
       '()
-      (make-ast-identifier
+      (make-ast-var
 	14
 	gn
 	(string->symbol "|#t|"))
@@ -665,7 +665,7 @@
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier 18 gn 'x))))
+	  (make-ast-var 18 gn 'x))))
     '(((9 . 2) "expected an identifier, found #f")
       ((14 . 2) "expected an identifier, found #t")))
 
@@ -675,7 +675,7 @@
       0
       gn
       '()
-      (make-ast-identifier
+      (make-ast-var
 	8
 	gn
 	(string->symbol "|#t|"))
@@ -685,7 +685,7 @@
 	'letrec*
 	'()
 	(list
-	  (make-ast-identifier 11 gn 'x))))
+	  (make-ast-var 11 gn 'x))))
     '(((8 . 2) "expected an identifier or an open delimiter, found #t"))))
 
 (test-group

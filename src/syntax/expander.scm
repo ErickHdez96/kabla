@@ -52,7 +52,8 @@
 		when)
 	  (only (rnrs lists)
 		assq
-		find)
+		find
+		cons*)
 	  (only (rnrs records syntactic)
 		define-record-type)
 	  (only (srfi srfi-28)
@@ -98,7 +99,7 @@
 		make-ast-string
 		make-ast-null
 		make-ast-list
-		make-ast-identifier
+		make-ast-var
 		make-ast-unspecified)
 	  (only (env)
 		make-root-env
@@ -173,7 +174,7 @@
 	    '())))
 
       (for-each
-	(lambda (d) (expand-datum expander d 'body))
+	(lambda (d) (expand-datum expander d #f 'body))
 	(pt-root-sexps pt))
       (expand-deferred-items expander)
 
@@ -182,17 +183,31 @@
 	(reverse (expander-errors expander)))))
 
   (define expand-datum
-    (lambda (e datum ctx)
+    (lambda (e datum source-datum ctx)
+      ;(display (conifer-tree->string datum))
+      ;(newline)
+      ;(cond
+	;[source-datum
+	  ;(display (conifer-tree->string source-datum))
+	  ;(newline)]
+	;[else
+	  ;(display #f)
+	  ;(newline)])
       (cond
 	[(pt-atom? datum) => (lambda (atom)
 			       (case ctx
-				 [(body) (defer-datum e 'datum datum)]
-				 [(expr) (expand-atom e atom)]
+				 [(body) (defer-datum e 'datum datum source-datum)]
+				 [(expr) (expand-atom e atom source-datum)]
 				 [else (error
 					 'expand-datum
 					 "unexpected context ~a"
 					 ctx)]))]
-	[(pt-list? datum) => (lambda (lst) (expand-list e datum lst ctx))]
+	[(pt-list? datum) => (lambda (lst) (expand-list
+					     e
+					     datum
+					     source-datum
+					     lst
+					     ctx))]
 	[(pt-abbreviation? datum)
 	 => (lambda (abb)
 	      (let* ([builder (expander-green-node-builder e)]
@@ -219,7 +234,7 @@
 				   (conifer-finish-node builder)
 				   (conifer-make-view (conifer-finish-builder builder)
 						      (conifer-red-offset datum)))])
-		(expand-datum e new-parent ctx)))]
+		(expand-datum e new-parent (conifer-red-tree-green datum) ctx)))]
 	[else (error
 		'expand-datum
 		"unexpected datum ~a: ~a"
@@ -231,17 +246,18 @@
       (for-each
 	(lambda (d)
 	  (case (car d)
-	    [(datum) (and-then (expand-datum e (cdr d) 'expr)
+	    [(datum) (and-then (expand-datum e (cadr d) (cddr d) 'expr)
 			       [-> i (push-item! e i)])]
 	    [(def)
-	     (let ([elems (pt-list? (cdr d))])
+	     (let ([elems (pt-list? (cadr d))])
 	       (cond
 		 [(and elems
 		       (keyword-def-list? e (car elems)))
 		  => (lambda (transformer)
 		       (and-then (transformer
 				   e
-				   (cdr d)
+				   (cadr d)
+				   (cddr d)
 				   (car elems)
 				   (and (not (null? (cdr elems)))
 					(cadr elems)))
@@ -258,19 +274,19 @@
 
   ;; Expands the inner child of an atom red-tree.
   (define expand-atom
-    (lambda (e atom)
+    (lambda (e atom source-datum)
       (let ([offset (pt-offset atom)])
 	(cond
-	  [(pt-boolean? atom) (make-ast-boolean offset atom (pt-boolean-value atom))]
-	  [(pt-char? atom) => (lambda (c) (make-ast-char offset atom c))]
-	  [(pt-string? atom) => (lambda (s) (make-ast-string offset atom s))]
-	  [(pt-identifier? atom) => (lambda (v) (make-ast-identifier offset atom v))]
+	  [(pt-boolean? atom) (make-ast-boolean offset atom (pt-boolean-value atom) source-datum)]
+	  [(pt-char? atom) => (lambda (c) (make-ast-char offset atom c source-datum))]
+	  [(pt-string? atom) => (lambda (s) (make-ast-string offset atom s source-datum))]
+	  [(pt-identifier? atom) => (lambda (v) (make-ast-var offset atom v source-datum))]
 	  [else (error 'expand-atom
 		       "unknown atom kind: ~a"
 		       (conifer-syntax-kind atom))]))))
 
   (define expand-list
-    (lambda (e parent lst ctx)
+    (lambda (e parent source-datum lst ctx)
       (let ([before-dot (car lst)]
 	    [after-dot (cdr lst)]
 	    [offset (pt-offset parent)])
@@ -289,7 +305,7 @@
 		  (make-hint "try '()")))
 
 	      (make-ast-null offset parent)]
-	     [else (defer-datum e 'datum parent)])]
+	     [else (defer-datum e 'datum parent source-datum)])]
 
 	  [else
 	    (case ctx
@@ -297,8 +313,8 @@
 	      ; for error recovery purposes, also in the body.
 	      [(body)
 	       (if (keyword-def-list? e before-dot)
-		 (defer-define e parent before-dot)
-		 (defer-datum e 'datum parent))]
+		 (defer-define e parent before-dot source-datum)
+		 (defer-datum e 'datum parent source-datum))]
 	      ; in an expression context we expand everything
 	      [(expr)
 	       (cond
@@ -308,20 +324,22 @@
 		    (pt-span parent)
 		    "definitions are not allowed in this context")
 		  ; we still defer it for error recovery purposes
-		  (defer-define e parent before-dot)
+		  (defer-define e parent before-dot source-datum)
 		  (make-ast-unspecified
 		    (pt-offset parent)
-		    parent)]
+		    parent
+		    source-datum)]
 		 [(keyword-expr-list? e before-dot)
 		  => (lambda (transformer)
 		       (transformer e
 				    parent
+				    source-datum
 				    before-dot
 				    (if (null? after-dot)
 				      #f
 				      (car after-dot))))]
 		 [else
-		   (let ([elems (map (lambda (d) (expand-datum e d 'expr))
+		   (let ([elems (map (lambda (d) (expand-datum e d #f 'expr))
 				     before-dot)])
 		     (when (not (null? after-dot))
 		       (emit-error
@@ -334,7 +352,8 @@
 		     (make-ast-list
 		       offset
 		       parent
-		       elems))])]
+		       elems
+		       source-datum))])]
 	      [else (error 'expand-list
 			   "can't expand list ~a"
 			   parent)])]))))
@@ -365,17 +384,17 @@
 
   ;; Pushes `expr` into the deferred list.
   (define defer-datum
-    (lambda (e kind datum)
+    (lambda (e kind datum source-datum)
       (let ([state (expander-state e)])
 	(state-deferred-set!
 	  state
-	  (cons (cons kind datum)
+	  (cons (cons* kind datum source-datum)
 		(state-deferred state)))
 	#f)))
 
   ;; Defers the define node `parent` to be lowered later.
   (define defer-define
-    (lambda (e parent elems)
+    (lambda (e parent elems source-datum)
       (when (>= (length elems) 2)
 	(cond
 	  [(or (and-then (pt-atom? (cadr elems))
@@ -388,7 +407,7 @@
 		(insert! e
 			 name
 			 'value))]))
-      (defer-datum e 'def parent)))
+      (defer-datum e 'def parent source-datum)))
 
   ;; Returns the current active environment.
   (define current-env

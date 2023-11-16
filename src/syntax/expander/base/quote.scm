@@ -31,7 +31,7 @@
 	  (common))
 
   (define keyword-quote
-    (lambda (e node elems dot)
+    (lambda (e node source-datum elems dot)
       (define last-span (close-delim-or-dot-span node))
       (define elems-length (length elems))
 
@@ -48,12 +48,12 @@
 	      e
 	      (pt-span node)
 	      "expected only one datum to quote"))
-	  (let ([q (quote-datum e node (cadr elems))])
+	  (let ([q (quote-datum e node source-datum (cadr elems))])
 	    (maybe-unexpected-dot e node dot)
 	    q)])))
 
   (define quote-datum
-    (lambda (e node elem)
+    (lambda (e node source-datum elem)
       (cond
 	[(pt-atom? elem)
 	 => (lambda (atom)
@@ -62,22 +62,26 @@
 					    (make-ast-symbol
 					      (pt-offset node)
 					      node
-					      ident))]
+					      ident
+					      source-datum))]
 		[(pt-boolean? atom)
 		 (make-ast-boolean
 		   (pt-offset node)
 		   node
-		   (pt-boolean-value atom))]
+		   (pt-boolean-value atom)
+		   source-datum)]
 		[(pt-char? atom) => (lambda (char)
 				      (make-ast-char
 					(pt-offset node)
 					node
-					char))]
+					char
+					source-datum))]
 		[(pt-string? atom) => (lambda (str)
 					(make-ast-string
 					  (pt-offset node)
 					  node
-					  str))]
+					  str
+					  source-datum))]
 		[else (error 'quote-datum
 			     "unknown atom ~a - ~a"
 			     (pt-syntax-kind elem)
@@ -87,7 +91,7 @@
 	      (cond
 		[(and (null? (car elems))
 		      (null? (cdr elems)))
-		 (make-ast-null (pt-offset node) node)]
+		 (make-ast-null (pt-offset node) node source-datum)]
 		[else (error 'quote-datum
 			     "cannot quote lists yet ~a"
 			     elem)]))]

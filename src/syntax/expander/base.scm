@@ -15,7 +15,7 @@
 		make-ast-unspecified
 		make-ast-if
 		make-ast-define
-		make-ast-identifier
+		make-ast-var
 		make-ast-lambda
 		make-ast-let
 		ast-define?)
@@ -50,7 +50,7 @@
   ;;	      | ( define ( <var> <formals> ) <expr> )
   ;;	      | ( define ( <var> . <formal> ) <expr> )
   (define keyword-define
-    (lambda (e node elems dot)
+    (lambda (e node source-datum elems dot)
       (define last-span (close-delim-or-dot-span node))
       (define elems-length (length elems))
 
@@ -64,7 +64,7 @@
 		   pt-identifier?)
 	 => (lambda (var)
 	      (let ([expr (or (and (>= elems-length 3)
-				   (expand-datum e (caddr elems) 'expr))
+				   (expand-datum e (caddr elems) #f 'expr))
 			      (make-ast-unspecified (pt-offset node) node))])
 		(when (>= elems-length 4)
 		  (expand-emit-error
@@ -77,11 +77,12 @@
 		(make-ast-define
 		  (pt-offset node)
 		  node
-		  (make-ast-identifier
+		  (make-ast-var
 		    (pt-offset (cadr elems))
 		    (cadr elems)
 		    var)
-		  expr)))]
+		  expr
+		  source-datum)))]
 	[(pt-list? (cadr elems))
 	 (expand-emit-error
 	   e
@@ -97,14 +98,14 @@
   ;; Expands an `if` expression
   ;; ( if <expr> <expr> <expr>? )
   (define keyword-if
-    (lambda (e node elems dot)
+    (lambda (e node source-datum elems dot)
       ; the span of the r-paren, dot, or last element
       (let* ([last-span (close-delim-or-dot-span node)]
 	     [elems-length (length elems)]
 	     ; the first element is the keyword `if`
 	     [conditional (cond
 			    [(>= elems-length 2)
-			     (expand-datum e (cadr elems) 'expr)]
+			     (expand-datum e (cadr elems) #f 'expr)]
 			    [else (expand-emit-error
 				    e
 				    last-span
@@ -112,7 +113,7 @@
 				  (make-ast-unspecified (pt-offset node) node)])]
 	     [true (cond
 		     [(>= elems-length 3)
-		      (expand-datum e (caddr elems) 'expr)]
+		      (expand-datum e (caddr elems) #f 'expr)]
 		     [else (expand-emit-error
 			     e
 			     last-span
@@ -120,7 +121,7 @@
 			   (make-ast-unspecified (pt-offset node) node)])]
 	     [false (cond
 		      [(>= elems-length 4)
-		       (expand-datum e (cadddr elems) 'expr)]
+		       (expand-datum e (cadddr elems) #f 'expr)]
 		      [else (make-ast-unspecified (pt-offset node) node)])])
 
 	(when (>= elems-length 5)
@@ -138,7 +139,8 @@
 	  node
 	  conditional
 	  true
-	  false))))
+	  false
+	  source-datum))))
 
   ;; Environment with all the keywords from (rnrs base).
   (define RNRS-BASE-ENV

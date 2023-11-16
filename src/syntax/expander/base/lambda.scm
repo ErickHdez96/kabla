@@ -18,7 +18,7 @@
                 ast-define-expr
                 ast-define?
                 ast-expr?
-                make-ast-identifier
+                make-ast-var
                 make-ast-lambda
                 make-ast-let)
           (only (syntax parse-tree)
@@ -43,7 +43,7 @@
   ;; Expands a `lambda` expression
   ;; ( lambda <formals> <body> )
   (define keyword-lambda
-    (lambda (e node elems dot)
+    (lambda (e node source-datum elems dot)
       (define last-span (close-delim-or-dot-span node))
       (define elems-length (length elems))
 
@@ -64,7 +64,7 @@
 	    (expand-enter-scope e)
 
             (for-each
-              (lambda (d) (expand-datum e d 'body))
+              (lambda (d) (expand-datum e d #f 'body))
               (cddr elems))
             (expand-deferred-items e)
 
@@ -107,7 +107,8 @@
 		  node
                   'letrec*
                   defs
-                  exprs))))])))
+                  exprs)
+		source-datum)))])))
 
   ;; <formals> → ( <formal>+ )
   ;;	   | <formal>
@@ -118,7 +119,7 @@
         [(and-then (pt-atom? node)
                    pt-identifier?)
          => (lambda (formal)
-              (cons '() (make-ast-identifier
+              (cons '() (make-ast-var
                           (pt-offset node)
 			  node
                           formal)))]
@@ -137,7 +138,7 @@
                                      [(and-then (pt-atom? (cadr f-elems))
                                                 pt-identifier?)
                                       => (lambda (rest)
-                                           (make-ast-identifier
+                                           (make-ast-var
                                              (pt-offset (cadr f-elems))
 					     (cadr f-elems)
                                              rest))]
@@ -147,7 +148,7 @@
                                              (format
                                                "expected an identifier, found ~a"
                                                (conifer-tree->string (cadr f-elems))))
-                                           (make-ast-identifier
+                                           (make-ast-var
                                              (pt-offset (cadr f-elems))
 					     (cadr f-elems)
                                              (string->symbol
@@ -168,7 +169,7 @@
                              pt-identifier?)
                    => (lambda (var)
                         (loop (cdr before-dot)
-                              (cons (make-ast-identifier
+                              (cons (make-ast-var
                                       (pt-offset (car before-dot))
 				      (car before-dot)
                                       var)
@@ -186,7 +187,7 @@
             (pt-span node)
             (format "expected an identifier or an open delimiter, found ~a"
                     (conifer-tree->string node)))
-          (cons '() (make-ast-identifier
+          (cons '() (make-ast-var
                       (pt-offset node)
 		      node
                       (string->symbol

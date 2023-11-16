@@ -25,8 +25,8 @@
 	  ast-char?
 	  make-ast-string
 	  ast-string?
-	  make-ast-identifier
-	  ast-identifier?
+	  make-ast-var
+	  ast-var?
 	  make-ast-symbol
 	  ast-symbol?
 	  make-ast-null
@@ -89,11 +89,15 @@
       variable
       ; ast-expr used to initialize `variable`, `#f` if none.
       expr
-      green)
+      green
+      source-datum)
     (protocol
       (lambda (new)
-	(lambda (offset tree variable expr)
+	(lambda (offset tree variable expr . source-datum)
 	  (assert (integer? offset))
+	  (assert (or (null? source-datum)
+		      (not (car source-datum))
+		      (conifer-green-tree? (car source-datum))))
 	  (new
 	    offset
 	    variable
@@ -103,7 +107,10 @@
 	      [(conifer-green-tree? tree) tree]
 	      [else (assertion-violation 'ast-root
 					 "expected a red/green node, found ~a"
-					 tree)]))))))
+					 tree)])
+	    (if (null? source-datum)
+	      #f
+	      (car source-datum)))))))
 
   ;; <expr> → <literal> | <list> | <vector> | <lambda> | <if> | <quote>
   ;;	    | <set!> | <pair>
@@ -117,13 +124,17 @@
       ; A symbol representing the kind of the expression.
       kind
       ; The value of the expresson, literals are stored as primitives
-      ; (i.e. char, boolean, number, identifier (symbol), string).
+      ; (i.e. char, boolean, number, var (symbol), string).
       value
-      green)
+      green
+      source-datum)
     (protocol
       (lambda (new)
-	(lambda (offset kind value tree)
+	(lambda (offset kind value tree source-datum)
 	  (assert (integer? offset))
+	  (assert (symbol? kind))
+	  (assert (or (not source-datum)
+		      (conifer-green-tree? source-datum)))
 	  (new
 	    offset
 	    kind
@@ -133,7 +144,8 @@
 	      [(conifer-green-tree? tree) tree]
 	      [else (assertion-violation 'ast-root
 					 "expected a red/green node, found ~a"
-					 tree)]))))))
+					 tree)])
+	    source-datum)))))
 
   ;; Returns the `(offset . length)` span of `node.`
   (define ast-span
@@ -151,8 +163,13 @@
   ;; datum couldn't be correctly expanded, an error is generated to preserve
   ;; the original tree.
   (define make-ast-error
-    (lambda (offset green)
-      (make-ast-expr offset 'error #f green)))
+    (lambda (offset green . source-datum)
+      (make-ast-expr
+	offset
+	'error
+	#f
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is an error expr.
   (define ast-error?
@@ -162,8 +179,13 @@
 
   ;; Returns a new boolean node.
   (define make-ast-boolean
-    (lambda (offset green b)
-      (make-ast-expr offset 'boolean b green)))
+    (lambda (offset green b . source-datum)
+      (make-ast-expr
+	offset
+	'boolean
+	b
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a boolean expr.
   (define ast-boolean?
@@ -173,8 +195,13 @@
 
   ;; Returns a new char node.
   (define make-ast-char
-    (lambda (offset green c)
-      (make-ast-expr offset 'char c green)))
+    (lambda (offset green c . source-datum)
+      (make-ast-expr
+	offset
+	'char
+	c
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a char expr.
   (define ast-char?
@@ -184,8 +211,13 @@
 
   ;; Returns a new string node.
   (define make-ast-string
-    (lambda (offset green s)
-      (make-ast-expr offset 'string s green)))
+    (lambda (offset green s . source-datum)
+      (make-ast-expr
+	offset
+	'string
+	s
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a string expr.
   (define ast-string?
@@ -193,21 +225,31 @@
       (and (ast-expr? e)
 	   (eq? 'string (ast-expr-kind e)))))
 
-  ;; Returns a new identifier node.
-  (define make-ast-identifier
-    (lambda (offset green id)
-      (make-ast-expr offset 'identifier id green)))
+  ;; Returns a new variable node.
+  (define make-ast-var
+    (lambda (offset green id . source-datum)
+      (make-ast-expr
+	offset
+	'var
+	id
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
-  ;; Returns `#t` if `e` is an identifier expr.
-  (define ast-identifier?
+  ;; Returns `#t` if `e` is an var expr.
+  (define ast-var?
     (lambda (e)
       (and (ast-expr? e)
-	   (eq? 'identifier (ast-expr-kind e)))))
+	   (eq? 'var (ast-expr-kind e)))))
 
   ;; Returns a new symbol node.
   (define make-ast-symbol
-    (lambda (offset green sy)
-      (make-ast-expr offset 'symbol sy green)))
+    (lambda (offset green sy . source-datum)
+      (make-ast-expr
+	offset
+	'symbol
+	sy
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a symbol expr.
   (define ast-symbol?
@@ -217,8 +259,13 @@
 
   ;; Returns a new unspecified node.
   (define make-ast-unspecified
-    (lambda (offset green)
-      (make-ast-expr offset 'unspecified #f green)))
+    (lambda (offset green . source-datum)
+      (make-ast-expr
+	offset
+	'unspecified
+	#f
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a unspecified expr.
   (define ast-unspecified?
@@ -228,8 +275,13 @@
 
   ;; Returns a new null node.
   (define make-ast-null
-    (lambda (offset green)
-      (make-ast-expr offset 'null #f green)))
+    (lambda (offset green . source-datum)
+      (make-ast-expr
+	offset
+	'null
+	#f
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a null expr.
   (define ast-null?
@@ -239,14 +291,15 @@
 
   ;; Returns a new list 
   (define make-ast-list
-    (lambda (offset green elems)
+    (lambda (offset green elems . source-datum)
       (make-ast-expr
 	offset
 	'list
 	(if (list? elems)
 	  (list->vector elems)
 	  elems)
-	green)))
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a list expression.
   (define ast-list?
@@ -256,16 +309,13 @@
 
   ;; Returns a new if node 
   (define make-ast-if
-    (lambda (offset green cond true . false)
+    (lambda (offset green cond true false . source-datum)
       (make-ast-expr
 	offset
 	'if
-	(cons* cond
-	       true
-	       (if (null? false)
-		 #f
-		 (car false)))
-	green)))
+	(cons* cond true false)
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is an if expression.
   (define ast-if?
@@ -275,13 +325,13 @@
 
   ;; Returns a new `lambda` node.
   (define make-ast-lambda
-    (lambda (offset green vars rest body)
+    (lambda (offset green vars rest body . source-datum)
       (assert (list? vars))
       (for-each
 	(lambda (v)
-	  (assert (ast-identifier? v)))
+	  (assert (ast-var? v)))
 	vars)
-      (assert (or (ast-identifier? rest)
+      (assert (or (ast-var? rest)
 		  (not rest)))
       (assert (and (ast-let? body)
 		   (eq? 'letrec* (ast-expr-kind body))))
@@ -289,10 +339,9 @@
       (make-ast-expr
 	offset
 	'lambda
-	(cons* vars
-	       rest
-	       body)
-	green)))
+	(cons* vars rest body)
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a lambda expression.
   (define ast-lambda?
@@ -302,7 +351,7 @@
 
   ;; Returns a new `lambda` node.
   (define make-ast-let
-    (lambda (offset green kind vars exprs)
+    (lambda (offset green kind vars exprs . source-datum)
       (assert (or (eq? 'let kind)
 		  (eq? 'let* kind)
 		  (eq? 'letrec kind)
@@ -311,7 +360,7 @@
       (for-each
 	(lambda (var)
 	  (assert (and (pair? var)
-		       (ast-identifier? (car var))
+		       (ast-var? (car var))
 		       (ast-expr? (cdr var)))))
 	vars)
       (assert (list? exprs))
@@ -323,9 +372,9 @@
       (make-ast-expr
 	offset
 	kind
-	(cons* vars
-	       exprs)
-	green)))
+	(cons vars exprs)
+	green
+	(and (pair? source-datum) (car source-datum)))))
 
   ;; Returns `#t` if `e` is a let/let*/letrec/letrec* expression.
   (define ast-let?
