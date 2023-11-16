@@ -18,7 +18,7 @@
                 ast-define-expr
                 ast-define?
                 ast-expr?
-                make-ast-var
+                make-ast-identifier
                 make-ast-lambda
                 make-ast-let)
           (only (syntax parse-tree)
@@ -119,7 +119,7 @@
         [(and-then (pt-atom? node)
                    pt-identifier?)
          => (lambda (formal)
-              (cons '() (make-ast-var
+              (cons '() (make-ast-identifier
                           (pt-offset node)
 			  node
                           formal)))]
@@ -138,7 +138,7 @@
                                      [(and-then (pt-atom? (cadr f-elems))
                                                 pt-identifier?)
                                       => (lambda (rest)
-                                           (make-ast-var
+                                           (make-ast-identifier
                                              (pt-offset (cadr f-elems))
 					     (cadr f-elems)
                                              rest))]
@@ -148,7 +148,7 @@
                                              (format
                                                "expected an identifier, found ~a"
                                                (conifer-tree->string (cadr f-elems))))
-                                           (make-ast-var
+                                           (make-ast-identifier
                                              (pt-offset (cadr f-elems))
 					     (cadr f-elems)
                                              (string->symbol
@@ -169,7 +169,7 @@
                              pt-identifier?)
                    => (lambda (var)
                         (loop (cdr before-dot)
-                              (cons (make-ast-var
+                              (cons (make-ast-identifier
                                       (pt-offset (car before-dot))
 				      (car before-dot)
                                       var)
@@ -187,7 +187,7 @@
             (pt-span node)
             (format "expected an identifier or an open delimiter, found ~a"
                     (conifer-tree->string node)))
-          (cons '() (make-ast-var
+          (cons '() (make-ast-identifier
                       (pt-offset node)
 		      node
                       (string->symbol

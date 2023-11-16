@@ -31,6 +31,13 @@
 	 [else
 	   (check-expression (ast-expr-value expected)
 			     (ast-expr-value actual))])]
+      [(ast-identifier? expected)
+       (assert (ast-identifier? actual))
+       (test-eqv (ast-identifier-offset expected)
+		 (ast-identifier-offset actual))
+       (test-eqv (ast-identifier-ident expected)
+		 (ast-identifier-ident actual))
+       ]
       [(ast-define? expected)
        (cond
 	 [(or (not (ast-define? actual)) 
@@ -265,24 +272,15 @@
   "expander variables"
   (check
     "a"
-    (make-ast-var
-      0
-      gn
-      'a))
+    (make-ast-var 0 gn 'a))
 
   (check
     "set!"
-    (make-ast-var
-      0
-      gn
-      'set!))
+    (make-ast-var 0 gn 'set!))
 
   (check
     "hello-world"
-    (make-ast-var
-      0
-      gn
-      'hello-world)))
+    (make-ast-var 0 gn 'hello-world)))
 
 (test-group
   "expander procedure calls"
@@ -433,7 +431,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-var 8 gn 'v)
+      (make-ast-identifier 8 gn 'v)
       (make-ast-unspecified 0 gn)))
 
   (check
@@ -441,7 +439,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-var 8 gn 'b)
+      (make-ast-identifier 8 gn 'b)
       (make-ast-boolean 10 gn #t)))
 
   (check
@@ -451,12 +449,12 @@
       (make-ast-define
 	0
 	gn
-	(make-ast-var 8 gn 'a)
+	(make-ast-identifier 8 gn 'a)
 	(make-ast-boolean 10 gn #t))
       (make-ast-define
 	19
 	gn
-	(make-ast-var 27 gn 'b)
+	(make-ast-identifier 27 gn 'b)
 	(make-ast-var 29 gn 'a)))))
 
 (test-group
@@ -476,14 +474,8 @@
     (make-ast-define
       0
       gn
-      (make-ast-var
-	8
-	gn
-	'a)
-      (make-ast-boolean
-	10
-	gn
-	#t))
+      (make-ast-identifier 8 gn 'a)
+      (make-ast-boolean 10 gn #t))
     '(((13 . 2) "expected ), found #f")))
 
   (check
@@ -491,14 +483,8 @@
     (make-ast-define
       0
       gn
-      (make-ast-var
-	8
-	gn
-	'a)
-      (make-ast-boolean
-	10
-	gn
-	#t))
+      (make-ast-identifier 8 gn 'a)
+      (make-ast-boolean 10 gn #t))
     '(((13 . 2) "expected ], found #f")))
 
   (check
@@ -506,10 +492,7 @@
     (make-ast-define
       0
       gn
-      (make-ast-var
-	8
-	gn
-	'a)
+      (make-ast-identifier 8 gn 'a)
       (make-ast-unspecified 0 gn))
     '(((10 . 1) "dot '.' not allowed in this context")))
 
@@ -529,8 +512,7 @@
     (make-ast-lambda
       0
       gn
-      (list
-	(make-ast-var 9 gn 'x))
+      (list (make-ast-identifier 9 gn 'x))
       #f
       (make-ast-let
 	0
@@ -546,8 +528,8 @@
       0
       gn
       (list
-	(make-ast-var 9 gn 'x)
-	(make-ast-var 11 gn 'y))
+	(make-ast-identifier 9 gn 'x)
+	(make-ast-identifier 11 gn 'y))
       #f
       (make-ast-let
 	0
@@ -563,8 +545,8 @@
       0
       gn
       (list
-	(make-ast-var 9 gn 'x))
-      (make-ast-var 13 gn 'rest)
+	(make-ast-identifier 9 gn 'x))
+      (make-ast-identifier 13 gn 'rest)
       (make-ast-let
 	0
 	gn
@@ -579,7 +561,7 @@
       0
       gn
       '()
-      (make-ast-var 8 gn 'x)
+      (make-ast-identifier 8 gn 'x)
       (make-ast-let
 	0
 	gn
@@ -594,7 +576,7 @@
       0
       gn
       '()
-      (make-ast-var 8 gn 'x)
+      (make-ast-identifier 8 gn 'x)
       (make-ast-let
 	0
 	gn
@@ -617,14 +599,14 @@
     (make-ast-lambda
       0
       gn
-      (list (make-ast-var 9 gn 'x))
+      (list (make-ast-identifier 9 gn 'x))
       #f
       (make-ast-let
 	0
 	gn
 	'letrec*
 	(list
-	  (cons (make-ast-var 20 gn 'a)
+	  (cons (make-ast-identifier 20 gn 'a)
 		(make-ast-var 22 gn 'x)))
 	(list
 	  (make-ast-var 25 gn 'a)))))
@@ -634,14 +616,14 @@
     (make-ast-lambda
       0
       gn
-      (list (make-ast-var 9 gn 'x))
+      (list (make-ast-identifier 9 gn 'x))
       #f
       (make-ast-let
 	0
 	gn
 	'letrec*
 	(list
-	  (cons (make-ast-var 22 gn 'a)
+	  (cons (make-ast-identifier 22 gn 'a)
 		(make-ast-var 24 gn 'x)))
 	(list
 	  (make-ast-var 12 gn 'x))))
@@ -653,10 +635,7 @@
       0
       gn
       '()
-      (make-ast-var
-	14
-	gn
-	(string->symbol "|#t|"))
+      (make-ast-identifier 14 gn (string->symbol "|#t|"))
       (make-ast-let
 	0
 	gn
@@ -673,10 +652,7 @@
       0
       gn
       '()
-      (make-ast-var
-	8
-	gn
-	(string->symbol "|#t|"))
+      (make-ast-identifier 8 gn (string->symbol "|#t|"))
       (make-ast-let
 	0
 	gn

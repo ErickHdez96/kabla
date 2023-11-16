@@ -12,6 +12,11 @@
 	  ast-offset
 	  ast-variable
 	  ast-expr
+	  make-ast-identifier
+	  ast-identifier?
+	  ast-identifier-offset
+	  ast-identifier-ident
+	  ast-identifier-green
 	  make-ast-expr
 	  ast-expr?
 	  ast-expr-offset
@@ -99,6 +104,7 @@
       (lambda (new)
 	(lambda (offset tree variable expr . source-datum)
 	  (assert (integer? offset))
+	  (assert (ast-identifier? variable))
 	  (assert (or (null? source-datum)
 		      (not (car source-datum))
 		      (conifer-green-tree? (car source-datum))))
@@ -106,6 +112,34 @@
 	    offset
 	    variable
 	    expr
+	    (cond
+	      [(conifer-red-tree? tree) (conifer-red-tree-green tree)]
+	      [(conifer-green-tree? tree) tree]
+	      [else (assertion-violation 'ast-root
+					 "expected a red/green node, found ~a"
+					 tree)])
+	    (if (null? source-datum)
+	      #f
+	      (car source-datum)))))))
+
+  (define-record-type
+    ast-identifier
+    (fields
+      offset
+      ident
+      green
+      source-datum)
+    (protocol
+      (lambda (new)
+	(lambda (offset tree ident . source-datum)
+	  (assert (integer? offset))
+	  (assert (symbol? ident))
+	  (assert (or (null? source-datum)
+		      (not (car source-datum))
+		      (conifer-green-tree? (car source-datum))))
+	  (new
+	    offset
+	    ident
 	    (cond
 	      [(conifer-red-tree? tree) (conifer-red-tree-green tree)]
 	      [(conifer-green-tree? tree) tree]
@@ -369,9 +403,9 @@
       (assert (list? vars))
       (for-each
 	(lambda (v)
-	  (assert (ast-var? v)))
+	  (assert (ast-identifier? v)))
 	vars)
-      (assert (or (ast-var? rest)
+      (assert (or (ast-identifier? rest)
 		  (not rest)))
       (assert (and (ast-let? body)
 		   (eq? 'letrec* (ast-expr-kind body))))
@@ -400,7 +434,7 @@
       (for-each
 	(lambda (var)
 	  (assert (and (pair? var)
-		       (ast-var? (car var))
+		       (ast-identifier? (car var))
 		       (ast-expr? (cdr var)))))
 	vars)
       (assert (list? exprs))

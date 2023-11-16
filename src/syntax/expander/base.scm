@@ -15,6 +15,7 @@
 		make-ast-unspecified
 		make-ast-if
 		make-ast-define
+		make-ast-identifier
 		make-ast-var
 		make-ast-lambda
 		make-ast-let
@@ -79,7 +80,7 @@
 		(make-ast-define
 		  (pt-offset node)
 		  node
-		  (make-ast-var
+		  (make-ast-identifier
 		    (pt-offset (cadr elems))
 		    (cadr elems)
 		    var)
