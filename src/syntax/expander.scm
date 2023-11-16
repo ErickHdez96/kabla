@@ -61,6 +61,7 @@
 		conifer-green-node-builder
 		conifer-tree->string
 		conifer-syntax-kind
+		conifer-red-tree?
 		conifer-red-parent
 		conifer-red-offset
 		conifer-red-children
@@ -211,7 +212,7 @@
 				   (conifer-push-token builder 'whitespace " ")
 				   (if (cdr abb)
 				     (conifer-push-node builder (conifer-red-tree-green (cdr abb)))
-				     (conier-push-token builder 'identifier (format
+				     (conifer-push-token builder 'identifier (format
 									      "<error - ~a>"
 									      (conifer-tree->string datum))))
 				   (conifer-push-token builder 'close-delim ")")
@@ -302,14 +303,14 @@
 	      [(expr)
 	       (cond
 		 [(keyword-def-list? e before-dot)
-		  (expand-emit-error
+		  (emit-error
 		    e
 		    (pt-span parent)
 		    "definitions are not allowed in this context")
 		  ; we still defer it for error recovery purposes
 		  (defer-define e parent before-dot)
 		  (make-ast-unspecified
-		    (pt-offset parent parent)
+		    (pt-offset parent)
 		    parent)]
 		 [(keyword-expr-list? e before-dot)
 		  => (lambda (transformer)

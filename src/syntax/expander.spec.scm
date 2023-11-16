@@ -2,7 +2,8 @@
 	(srfi srfi-64)
 	(conifer)
 	(syntax shortcuts)
-	(syntax ast))
+	(syntax ast)
+	(common))
 
 (test-runner-current (test-runner-simple))
 
@@ -15,6 +16,8 @@
 	   (symbol? expected))
        (test-equal expected actual)]
       [(vector? expected)
+       (assert (= (vector-length expected)
+		  (vector-length actual)))
        (vector-for-each
 	 check-node
 	 expected
@@ -455,8 +458,10 @@
 	19
 	gn
 	(make-ast-identifier 27 gn 'b)
-	(make-ast-identifier 29 gn 'a))))
+	(make-ast-identifier 29 gn 'a)))))
 
+(test-group
+  "expander define error"
   (check
     "(define)"
     '()
@@ -507,7 +512,17 @@
 	gn
 	'a)
       (make-ast-unspecified 0 gn))
-    '(((10 . 1) "dot '.' not allowed in this context"))))
+    '(((10 . 1) "dot '.' not allowed in this context")))
+
+  (check
+    "((define a 2))"
+    (make-ast-list
+      0
+      gn
+      (list
+	(make-ast-unspecified
+	  1 gn)))
+    '(((1 . 12) "definitions are not allowed in this context"))))
 
 (test-group
   "expander lambda"
