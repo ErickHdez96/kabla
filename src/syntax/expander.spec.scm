@@ -769,7 +769,73 @@
   (check
     "(assert #t #t)"
     (make-ast-assert 0 gn (make-ast-boolean 8 gn #t))
-    '(((11 . 2) "expected ), found #t"))))
+    '(((11 . 2) "expected ), found #t")))
+
+  (check
+    "(assert #t . #t)"
+    (make-ast-assert 0 gn (make-ast-boolean 8 gn #t))
+    '(((11 . 1) "dot '.' not allowed in this context")))
+
+  )
+
+(test-group
+  "expander set!"
+  (check
+    "(set! a #t)"
+    (make-ast-set!
+      0
+      gn
+      (make-ast-identifier 6 gn 'a)
+      (make-ast-boolean 8 gn #t))))
+
+(test-group
+  "expander set! error"
+  (check
+    "(set!)"
+    (make-ast-unspecified
+      0
+      gn)
+    '(((5 . 1) "expected a variable")))
+
+  (check
+    "(set! a)"
+    (make-ast-unspecified
+      0
+      gn)
+    '(((7 . 1) "expected an expression")))
+
+  (check
+    "(set! #t)"
+    (make-ast-unspecified 0 gn)
+    '(((6 . 2) "expected a variable, found #t")
+      ((8 . 1) "expected an expression")))
+
+  (check
+    "(set! #t #t)"
+    (make-ast-set!
+      0
+      gn
+      (make-ast-identifier 6 gn (string->symbol "|#t|"))
+      (make-ast-boolean 9 gn #t))
+    '(((6 . 2) "expected a variable, found #t")))
+
+  (check
+    "(set! a #t #f)"
+    (make-ast-set!
+      0
+      gn
+      (make-ast-identifier 6 gn 'a)
+      (make-ast-boolean 8 gn #t))
+    '(((11 . 2) "expected ), found #f")))
+
+  (check
+    "(set! a #t . #f)"
+    (make-ast-set!
+      0
+      gn
+      (make-ast-identifier 6 gn 'a)
+      (make-ast-boolean 8 gn #t))
+    '(((11 . 1) "dot '.' not allowed in this context"))))
 
 (test-group
   "expander multiple atoms"

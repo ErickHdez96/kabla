@@ -37,6 +37,8 @@
 		keyword-assert)
 	  (only (syntax expander base lambda)
 		keyword-lambda)
+	  (only (syntax expander base set!)
+		keyword-set!)
 	  (only (syntax expander base quote)
 		keyword-quote)
 	  (only (syntax expander base common)
@@ -182,4 +184,11 @@
 	(cons
 	  'keyword-expr
 	  keyword-assert))
+
+      (env-insert!
+	env
+	'set!
+	(cons
+	  'keyword-expr
+	  keyword-set!))
       env)))

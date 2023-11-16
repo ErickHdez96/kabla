@@ -44,6 +44,8 @@
 	  ast-proc-call?
 	  make-ast-if
 	  ast-if?
+	  make-ast-set!
+	  ast-set!?
 	  make-ast-assert
 	  ast-assert?
 	  make-ast-lambda
@@ -396,6 +398,24 @@
     (lambda (e)
       (and (ast-expr? e)
 	   (eq? 'if (ast-expr-kind e)))))
+
+  ;; Returns a new set! node 
+  (define make-ast-set!
+    (lambda (offset green ident expr . source-datum)
+      (assert (ast-identifier? ident))
+      (assert (ast-expr? expr))
+      (make-ast-expr
+	offset
+	'set!
+	(cons* ident expr)
+	green
+	(and (pair? source-datum) (car source-datum)))))
+
+  ;; Returns `#t` if `e` is a set! expression.
+  (define ast-set!?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'set! (ast-expr-kind e)))))
 
   ;; Returns a new `lambda` node.
   (define make-ast-lambda
