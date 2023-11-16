@@ -35,6 +35,8 @@
 	  ast-unspecified?
 	  make-ast-list
 	  ast-list?
+	  make-ast-proc-call
+	  ast-proc-call?
 	  make-ast-if
 	  ast-if?
 	  make-ast-lambda
@@ -289,15 +291,16 @@
       (and (ast-expr? e)
 	   (eq? 'null (car (ast-expr-value e))))))
 
-  ;; Returns a new list 
+  ;; Returns a new list.
   (define make-ast-list
-    (lambda (offset green elems . source-datum)
+    (lambda (offset green elems proper? . source-datum)
       (make-ast-expr
 	offset
 	'list
-	(if (list? elems)
-	  (list->vector elems)
-	  elems)
+	(cons (if (list? elems)
+		(list->vector elems)
+		elems)
+	      proper?)
 	green
 	(and (pair? source-datum) (car source-datum)))))
 
@@ -306,6 +309,25 @@
     (lambda (e)
       (and (ast-expr? e)
 	   (eq? 'list (ast-expr-kind e)))))
+
+  ;; Returns a new function call 
+  (define make-ast-proc-call
+    (lambda (offset green fn elems . source-datum)
+      (make-ast-expr
+	offset
+	'proc-call
+	(cons fn
+	      (if (list? elems)
+		(list->vector elems)
+		elems))
+	green
+	(and (pair? source-datum) (car source-datum)))))
+
+  ;; Returns `#t` if `e` is a function call.
+  (define ast-proc-call?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'proc-call (ast-expr-kind e)))))
 
   ;; Returns a new if node 
   (define make-ast-if

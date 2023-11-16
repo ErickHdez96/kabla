@@ -19,26 +19,37 @@
        (assert (= (vector-length expected)
 		  (vector-length actual)))
        (vector-for-each
-	 check-node
+	 check-expression
 	 expected
 	 actual)]
+      [(ast-expr? expected)
+       (cond
+	 [(or (not (ast-expr? actual)) 
+	      (not (equal? (ast-expr-offset expected) (ast-expr-offset actual)))
+	      (not (equal? (ast-expr-kind expected) (ast-expr-kind actual))))
+	  (test-equal expected actual)]
+	 [else
+	   (check-expression (ast-expr-value expected)
+			     (ast-expr-value actual))])]
+      [(ast-define? expected)
+       (cond
+	 [(or (not (ast-define? actual)) 
+	      (not (equal? (ast-define-offset expected) (ast-define-offset actual))))
+	  (test-equal expected actual)]
+	 [else
+	   (check-expression (ast-define-variable expected)
+			     (ast-define-variable actual))
+	   (check-expression (ast-define-expr expected)
+			     (ast-define-expr actual))])]
       [(pair? expected)
        (assert (pair? actual))
-       (let loop ([e expected]
-		  [a actual])
-	 (check-node (car e)
-		     (car a))
-	 (cond
-	   [(pair? (cdr e))
-	    (assert (pair? (cdr a)))
-	    (loop (cdr e)
-		  (cdr a))]
-	   [else
-	     (assert (not (pair? (cdr a))))
-	     (check-node (cdr e)
-			 (cdr a))]))]
-      [else
-	(test-equal expected actual)])))
+       (check-expression (car expected) (car actual))
+       (check-expression (cdr expected) (cdr actual))]
+      [(null? expected) (assert (null? actual))]
+      [else (error 'check-expression
+		   "unknown kind: ~a - ~a"
+		   expected
+		   actual)])))
 
 (define check-node
   (lambda (expected actual)
@@ -72,13 +83,13 @@
 	 (test-eqv
 	   1
 	   (length (ast-root-items (car result))))
-	 (check-node
+	 (check-expression
 	   expected-ast
 	   (car (ast-root-items (car result))))]
 	[else
 	  (for-each
 	    (lambda (e a)
-	      (check-node e a))
+	      (check-expression e a))
 	    expected-ast
 	    (ast-root-items (car result)))])
 
@@ -277,25 +288,19 @@
   "expander procedure calls"
   (check
     "(f)"
-    (make-ast-list
+    (make-ast-proc-call
       0
       gn
-      (list
-	(make-ast-var
-	  1
-	  gn
-	  'f))))
+      (make-ast-var 1 gn 'f)
+      (list)))
 
   (check
     "(char=? #\\a #\\a)"
-    (make-ast-list
+    (make-ast-proc-call
       0
       gn
+      (make-ast-var 1 gn 'char=?)
       (list
-	(make-ast-var
-	  1
-	  gn
-	  'char=?)
 	(make-ast-char
 	  8
 	  gn
@@ -315,26 +320,20 @@
 
   (check
     "(a . ())"
-    (make-ast-list
+    (make-ast-proc-call
       0
       gn
-      (list
-	(make-ast-var
-	  1
-	  gn
-	  'a)))
+      (make-ast-var 1 gn 'a)
+      (list))
     '(((3 . 1) "dot '.' not allowed in this context")))
 
   (check
     "(id ())"
-    (make-ast-list
+    (make-ast-proc-call
       0
       gn
+      (make-ast-var 1 gn 'id)
       (list
-	(make-ast-var
-	  1
-	  gn
-	  'id)
 	(make-ast-null 4 gn)))
     '(((4 . 2) "empty lists not allowed" (#f . "try '()")))))
 
@@ -516,12 +515,11 @@
 
   (check
     "((define a 2))"
-    (make-ast-list
+    (make-ast-proc-call
       0
       gn
-      (list
-	(make-ast-unspecified
-	  1 gn)))
+      (make-ast-unspecified 1 gn)
+      (list))
     '(((1 . 12) "definitions are not allowed in this context"))))
 
 (test-group
@@ -603,16 +601,16 @@
 	'letrec*
 	'()
 	(list
-	  (make-ast-list
+	  (make-ast-proc-call
 	    10
 	    gn
-	    (list
-	      (make-ast-var 11 gn 'x)))
-	  (make-ast-list
+	    (make-ast-var 11 gn 'x)
+	    (list))
+	  (make-ast-proc-call
 	    14
 	    gn
-	    (list
-	      (make-ast-var 15 gn 'x)))))))
+	    (make-ast-var 15 gn 'x)
+	    (list))))))
 
   (check
     "(lambda (x) (define a x) a)"
@@ -690,41 +688,82 @@
 
 (test-group
   "expander quote"
-  (check
-    "(quote a)"
-    (make-ast-symbol
-      0
-      gn
-      'a))
+  (check "(quote a)" (make-ast-symbol 0 gn 'a))
+  (check "(quote #t)" (make-ast-boolean 0 gn #t))
+  (check "(quote #f)" (make-ast-boolean 0 gn #f))
+  (check "(quote #\\a)" (make-ast-char 0 gn #\a))
+  (check "(quote ())" (make-ast-null 0 gn))
 
   (check
-    "(quote #t)"
-    (make-ast-boolean
+    "(quote (a b))"
+    (make-ast-list
       0
       gn
+      (list
+	(make-ast-symbol 8 gn 'a)
+	(make-ast-symbol 10 gn 'b))
       #t))
 
   (check
-    "(quote #f)"
-    (make-ast-boolean
+    "(quote (#t #f a b))"
+    (make-ast-list
       0
       gn
+      (list
+	(make-ast-boolean 8 gn #t)
+	(make-ast-boolean 11 gn #f)
+	(make-ast-symbol 14 gn 'a)
+	(make-ast-symbol 16 gn 'b))
+      #t))
+
+  (check
+    "(quote (a . b))"
+    (make-ast-list
+      0
+      gn
+      (list
+	(make-ast-symbol 8 gn 'a)
+	(make-ast-symbol 12 gn 'b))
       #f))
 
   (check
-    "(quote #\\a)"
-    (make-ast-char
+    "(quote (a b . #t))"
+    (make-ast-list
       0
       gn
-      #\a))
-
-  (check
-    "(quote ())"
-    (make-ast-null 0 gn))
+      (list
+	(make-ast-symbol 8 gn 'a)
+	(make-ast-symbol 10 gn 'b)
+	(make-ast-boolean 14 gn #t))
+      #f))
 
   (check
     "(quote \"hi\")"
     (make-ast-string 0 gn "hi")))
+
+(test-group
+  "expander quote error"
+  (check
+    "[quote (a . b c)]"
+    (make-ast-list
+      0
+      gn
+      (list
+	(make-ast-symbol 8 gn 'a)
+	(make-ast-symbol 12 gn 'b))
+      #f)
+    '(((14 . 1) "expected ), found c")))
+
+  (check
+    "(quote [a . b #t])"
+    (make-ast-list
+      0
+      gn
+      (list
+	(make-ast-symbol 8 gn 'a)
+	(make-ast-symbol 12 gn 'b))
+      #f)
+    '(((14 . 2) "expected ], found #t"))))
 
 (test-group
   "expander abbreviations"

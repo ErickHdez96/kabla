@@ -4,11 +4,16 @@
   (import (rnrs base)
 	  (only (rnrs control)
 		when)
+	  (only (srfi srfi-28)
+		format)
+	  (only (conifer)
+		conifer-tree->string)
 	  (only (syntax ast)
 		make-ast-error
 		make-ast-boolean
 		make-ast-char
 		make-ast-null
+		make-ast-list
 		make-ast-string
 		make-ast-symbol)
 	  (only (syntax parse-tree)
@@ -89,12 +94,41 @@
 	[(pt-list? elem)
 	 => (lambda (elems)
 	      (cond
-		[(and (null? (car elems))
-		      (null? (cdr elems)))
+		[(null? (car elems))
+		 (maybe-unexpected-dot e node (and (not (null? (cdr elems)))
+						   (cadr elems)))
 		 (make-ast-null (pt-offset node) node source-datum)]
-		[else (error 'quote-datum
-			     "cannot quote lists yet ~a"
-			     elem)]))]
+		[(null? (cdr elems))
+		 (make-ast-list
+		   (pt-offset node)
+		   node
+		   (map (lambda (d) (quote-datum e d #f d))
+			(car elems))
+		   #t
+		   source-datum)]
+		[else
+		  (when (not (null? (cddr elems)))
+		    (expand-emit-error
+		      e
+		      (pt-span (caddr elems))
+		      (format
+			"expected ~a, found ~a"
+			(expected-closing-delim elem)
+			(conifer-tree->string (caddr elems)))))
+		  (map (lambda (d) (conifer-tree->string d)) (car elems))
+		  (make-ast-list
+		    (pt-offset node)
+		    node
+		    (append (map (lambda (d) (quote-datum e d #f d))
+				 (car elems))
+			    (list
+			      (quote-datum e
+					   (cadr elems)
+					   #f
+					   (cadr elems))))
+		    #f
+		    source-datum)
+		  ]))]
 	[else (error 'quote-datum
 		     "unknown datum kind ~a - ~a"
 		     (pt-syntax-kind elem)

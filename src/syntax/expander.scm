@@ -99,6 +99,7 @@
 		make-ast-string
 		make-ast-null
 		make-ast-list
+		make-ast-proc-call
 		make-ast-var
 		make-ast-unspecified)
 	  (only (env)
@@ -349,10 +350,11 @@
 			     pt-dot?
 			     (vector->list (conifer-red-children parent))))
 			 "dot '.' not allowed in this context"))
-		     (make-ast-list
+		     (make-ast-proc-call
 		       offset
 		       parent
-		       elems
+		       (car elems)
+		       (cdr elems)
 		       source-datum))])]
 	      [else (error 'expand-list
 			   "can't expand list ~a"
