@@ -775,6 +775,27 @@
       'a)))
 
 (test-group
+  "expander assert"
+  (check
+    "(assert #t)"
+    (make-ast-assert
+      0
+      gn
+      (make-ast-boolean 8 gn #t))))
+
+(test-group
+  "expander assert error"
+  (check
+    "(assert)"
+    (make-ast-unspecified 0 gn)
+    '(((7 . 1) "expected an expression")))
+
+  (check
+    "(assert #t #t)"
+    (make-ast-assert 0 gn (make-ast-boolean 8 gn #t))
+    '(((11 . 2) "expected ), found #t"))))
+
+(test-group
   "expander multiple atoms"
   (check
     "#t #f"

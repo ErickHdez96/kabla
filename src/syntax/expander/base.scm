@@ -32,6 +32,8 @@
 		expand-datum
 		expand-emit-error
 		expand-take-items!)
+	  (only (syntax expander base assert)
+		keyword-assert)
 	  (only (syntax expander base lambda)
 		keyword-lambda)
 	  (only (syntax expander base quote)
@@ -172,4 +174,11 @@
 	(cons
 	  'keyword-expr
 	  keyword-quote))
+
+      (env-insert!
+	env
+	'assert
+	(cons
+	  'keyword-expr
+	  keyword-assert))
       env)))

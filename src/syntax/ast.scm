@@ -39,6 +39,8 @@
 	  ast-proc-call?
 	  make-ast-if
 	  ast-if?
+	  make-ast-assert
+	  ast-assert?
 	  make-ast-lambda
 	  ast-lambda?
 	  make-ast-let
@@ -328,6 +330,22 @@
     (lambda (e)
       (and (ast-expr? e)
 	   (eq? 'proc-call (ast-expr-kind e)))))
+
+  ;; Returns a new assert node 
+  (define make-ast-assert
+    (lambda (offset green expr . source-datum)
+      (make-ast-expr
+	offset
+	'assert
+	expr
+	green
+	(and (pair? source-datum) (car source-datum)))))
+
+  ;; Returns `#t` if `e` is an assert expression.
+  (define ast-assert?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'assert (ast-expr-kind e)))))
 
   ;; Returns a new if node 
   (define make-ast-if
