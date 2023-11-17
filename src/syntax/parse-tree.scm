@@ -176,6 +176,18 @@
 		(conifer-syntax-kind node))
 	   node)))
 
+  ;; Returns `#f` if `node` is not a vector. Otherwise returns a list of all
+  ;; s-exps.
+  (define pt-vector?
+    (lambda (node)
+      (and (eq? 'vector
+		(conifer-syntax-kind node))
+	   (filter
+	     (lambda (x) x)
+	     (map
+	       pt-sexp?
+	       (vector->list (conifer-red-children node)))))))
+
   ;; Returns `node` as-is if it is a bytevector, `#f` otherwise.
   (define pt-bytevector?
     (lambda (node)

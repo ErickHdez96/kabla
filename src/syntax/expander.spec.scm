@@ -838,6 +838,32 @@
     '(((11 . 1) "dot '.' not allowed in this context"))))
 
 (test-group
+  "expander vectors"
+  (check
+    "#()"
+    (make-ast-vector
+      0
+      gn
+      (list)))
+
+  (check
+    "#(#t)"
+    (make-ast-vector
+      0
+      gn
+      (list
+	(make-ast-boolean 2 gn #t))))
+
+  (check
+    "#(#(#t) #(#f))"
+    (make-ast-vector
+      0
+      gn
+      (list
+	(make-ast-vector 2 gn (list (make-ast-boolean 4 gn #t)))
+	(make-ast-vector 8 gn (list (make-ast-boolean 10 gn #f)))))))
+
+(test-group
   "expander multiple atoms"
   (check
     "#t #f"

@@ -86,6 +86,7 @@
 		pt-string?
 		pt-identifier?
 		pt-list?
+		pt-vector?
 		pt-dot?
 		pt-vector?
 		pt-bytevector?
@@ -99,6 +100,7 @@
 		make-ast-string
 		make-ast-null
 		make-ast-list
+		make-ast-vector
 		make-ast-proc-call
 		make-ast-var
 		make-ast-unspecified)
@@ -185,15 +187,6 @@
 
   (define expand-datum
     (lambda (e datum source-datum ctx)
-      ;(display (conifer-tree->string datum))
-      ;(newline)
-      ;(cond
-	;[source-datum
-	  ;(display (conifer-tree->string source-datum))
-	  ;(newline)]
-	;[else
-	  ;(display #f)
-	  ;(newline)])
       (cond
 	[(pt-atom? datum) => (lambda (atom)
 			       (case ctx
@@ -209,6 +202,18 @@
 					     source-datum
 					     lst
 					     ctx))]
+	[(pt-vector? datum) => (lambda (elems)
+				 (case ctx
+				   [(body) (defer-datum e 'datum datum source-datum)]
+				   [(expr) (expand-vector
+					     e
+					     datum
+					     source-datum
+					     elems)]
+				   [else (error
+					   'expand-datum
+					   "unexpected context ~a"
+					   ctx)]))]
 	[(pt-abbreviation? datum)
 	 => (lambda (abb)
 	      (let* ([builder (expander-green-node-builder e)]
@@ -359,6 +364,22 @@
 	      [else (error 'expand-list
 			   "can't expand list ~a"
 			   parent)])]))))
+
+  (define expand-vector
+    (lambda (e parent source-datum elems)
+      (let ([expanded-elems (map
+			      (lambda (d)
+				(expand-datum
+				  e
+				  d
+				  #f
+				  'expr))
+			      elems)])
+	(make-ast-vector
+	  (pt-offset parent)
+	  parent
+	  expanded-elems
+	  source-datum))))
 
   ;; Returns the associated transformer if the first element of `elems` is an
   ;; expression keyword (e.g. `if`, `lamdba`, etc.)

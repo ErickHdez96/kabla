@@ -40,6 +40,8 @@
 	  ast-unspecified?
 	  make-ast-list
 	  ast-list?
+	  make-ast-vector
+	  ast-vector?
 	  make-ast-proc-call
 	  ast-proc-call?
 	  make-ast-if
@@ -366,6 +368,24 @@
     (lambda (e)
       (and (ast-expr? e)
 	   (eq? 'proc-call (ast-expr-kind e)))))
+
+  ;; Returns a new vector.
+  (define make-ast-vector
+    (lambda (offset green elems . source-datum)
+      (make-ast-expr
+	offset
+	'vector
+	(if (list? elems)
+	  (list->vector elems)
+	  elems)
+	green
+	(and (pair? source-datum) (car source-datum)))))
+
+  ;; Returns `#t` if `e` is a vector expression.
+  (define ast-vector?
+    (lambda (e)
+      (and (ast-expr? e)
+	   (eq? 'vector (ast-expr-kind e)))))
 
   ;; Returns a new assert node 
   (define make-ast-assert
